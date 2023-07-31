@@ -1,19 +1,19 @@
-from pydicom import dcmread
 import os
 import matplotlib
-import matplotlib.pyplot as plt
 import cv2
 import json
-import copy
 
 matplotlib.use("Qt5Agg")
 
+
 class DcmData():
     def __init__(self) -> None:
-        self.file_mode = None  #file_mode가 'dcm'이면 dcm또는 DCM파일. file_mode가 'mp4' mp4파일을 가리킵니다.
+        # file_mode가 'dcm'이면 dcm또는 DCM파일. file_mode가 'mp4' mp4파일을 가리킵니다.
+        self.file_mode = None
 
         self.label_dir = None
-        self.frame_label_dict = {}  # {"frame_number”: {”type”: {”label id1”: {coords: [], color : “” }}, “label id2”: [coords]}
+        # {"frame_number”: {”type”: {”label id1”: {coords: [], color : “” }}, “label id2”: [coords]}
+        self.frame_label_dict = {}
 
         self.ds = None
         self.image = None
@@ -34,12 +34,13 @@ class DcmData():
             os.mkdir(self.label_dir)
         except FileExistsError:
             pass
-        
+
         if file_extension == "mp4":
             self.file_mode = 'mp4'
             self.open_mp4_file(fname)
-    
-    def load_label_dict(self, custom_range=None):    # text 파일로부터 현재 label dictionary를 불러옴
+
+    # text 파일로부터 현재 label dictionary를 불러옴
+    def load_label_dict(self, custom_range=None):
         for file_name in os.listdir(self.label_dir):
             frame_number = int(file_name.split(".")[0])
             frame_dict = {}
@@ -54,25 +55,25 @@ class DcmData():
 
                 except FileNotFoundError:
                     pass
-            
+
     def save_label(self):
         for key in self.frame_label_dict:
             with open(f"{self.label_dir}/{key}.txt", 'w') as f:
                 f.write(json.dumps(self.frame_label_dict[key]))
-    
+
     def add_label(self, drawing_type, label_name, coords, color="red"):
         try:
             frame_dict = self.frame_label_dict[self.frame_number]
         except KeyError:
             self.frame_label_dict[self.frame_number] = {}
-            frame_dict =  self.frame_label_dict[self.frame_number]   # {}
-        
+            frame_dict = self.frame_label_dict[self.frame_number]   # {}
+
         try:
             label_type_dict = frame_dict[drawing_type]
         except KeyError:
             frame_dict[drawing_type] = {}
             label_type_dict = frame_dict[drawing_type]
-        
+
         # frame_label_dict에 label data 저장
         label_data_dict = {}
         label_data_dict['coords'] = coords
@@ -80,45 +81,42 @@ class DcmData():
 
         label_type_dict[label_name] = label_data_dict
 
-
     def open_mp4_file(self, fname):
         self.frame_number = 0
         self.video_player = cv2.VideoCapture()
         self.video_player.open(fname[0])
         self.total_frame = int(self.video_player.get(cv2.CAP_PROP_FRAME_COUNT))
-        
+
         ret, frame = self.video_player.read()
         if ret:
             self.image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     def delete_label_file(self, file_name):
         file_path = f"{self.label_dir}/{file_name}.txt"
-        print("file_path:",file_path)
-        
+        print("file_path:", file_path)
+
         try:
             os.remove(file_path)
             print(f"file '{file_name}' has been deleted successfully")
         except FileNotFoundError:
             print(f"file '{file_name}' not found")
-        except Exception as e:
-            print(f"An error occured while deleting a file '{file_name}")
 
-    def delete_label(self, _label_name, frame = None):
+    def delete_label(self, _label_name, frame=None):
         print(self.frame_label_dict)
         print(f"frame : {frame}")
-        
+
         if frame is not None:
             frame_number = int(frame)
         else:
             frame_number = self.frame_number
-            
+
         frame_dict = self.frame_label_dict[frame_number]
         for label_dict in frame_dict.values():
             if _label_name in label_dict:
                 label_dict.pop(_label_name)
                 break
         print(f"라벨 정보 제거 후: {self.frame_label_dict}")
-    
+
     def modify_label_data(self, _label_name, _coor, _color):
         frame_dict = self.frame_label_dict[self.frame_number]
         for label_dict in frame_dict.values():
@@ -134,10 +132,10 @@ class DcmData():
             for _, label_dict in frame_dict.items():
                 for label in label_dict:
                     label_list.append(label)
-            
+
             if len(label_list) == 0:
                 return False
             else:
                 return label_list
-        except:
+        except KeyError:
             return False

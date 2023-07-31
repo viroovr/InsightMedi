@@ -1,6 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
-
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
 from gui.data.test_data import DcmData
@@ -62,7 +59,7 @@ class Controller():
         print(f"Drawing mode : {mode}")
         self.set_mpl_disconnect()
         self.set_mpl_connect(self.on_mouse_press,
-                            self.on_draw_mouse_move, self.on_draw_mouse_release)
+                             self.on_draw_mouse_move, self.on_draw_mouse_release)
 
     def init_selector(self, mode):
         self.set_mpl_disconnect()
@@ -93,7 +90,7 @@ class Controller():
         return annotation.get_edgecolor()
 
     def set_edge_color(self, annotation, color):
-            # rectangle, circle
+        # rectangle, circle
         annotation.set_edgecolor(color)
 
     def set_edge_thick(self, annotation, line_width=1):
@@ -134,9 +131,9 @@ class Controller():
                 self.delete_label(self.artist.get_label())
 
     def selector_on_press(self, event):
-        """ 
+        """
         선택된 라벨이 self.artist에 저장되어있어야 하며
-        선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다. 
+        선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
         if self.artist is None:
             return
@@ -161,8 +158,8 @@ class Controller():
         dx = event.xdata - xpress
         dy = event.ydata - ypress
 
-            # print(f'x0={x0}, xpress={xpress}, event.xdata={event.xdata}, '
-            #       f'dx={dx}, x0+dx={x0+dx}')
+        # print(f'x0={x0}, xpress={xpress}, event.xdata={event.xdata}, '
+        #       f'dx={dx}, x0+dx={x0+dx}')
         self.artist.set_x(x0 + dx)
         self.artist.set_y(y0 + dy)
 
