@@ -339,12 +339,12 @@ class MyWindow(QMainWindow):
 
     def updateFrame(self):
         # frame update
-        ret, frame = self.dd.video_player.read()
-        if ret:
+        self.ret, self.frame = self.dd.video_player.read()
+        if self.ret:
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
             self.set_frame_label()  # 현재 frame 상태 화면에 update
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
             self.cl.img_show(rgb_frame, clear=True)
 
             # frame에 라벨이 존재하면 라벨을 보여줍니다.
@@ -380,3 +380,16 @@ class MyWindow(QMainWindow):
         if reply == QMessageBox.Yes:
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
             self.disable_total_label()    # label 버튼 비활성화
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_T:
+            print("t 키 눌림")
+            bbox = self.cl.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
+            if bbox:
+                try:
+                    frame = self.frame
+                except AttributeError:
+                    frame = self.dd.frame
+                self.cl.object_tracking(frame, bbox)    # object tracking 한 결과 나온 라벨링 그리기
+                self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+                

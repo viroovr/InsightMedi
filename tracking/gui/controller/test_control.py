@@ -1,3 +1,7 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
 from gui.data.test_data import DcmData
@@ -322,3 +326,38 @@ class Controller():
         self.ax.imshow(img, cmap=cmap)
         self.ax.axis("off")
         self.canvas.draw()
+
+    def check_bbox(self):
+        """
+        object tracking이 가능한 상태인 지 확인하고, bbox를 반환합니다.
+
+        Returns:
+            bbox (bool or list): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
+        """
+        label_list = self.dd.frame_label_check(self.dd.frame_number)
+        if self.dd.file_mode == 'mp4' and label_list:
+            label = label_list[0]
+            coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
+            x = coord_list[0][0]
+            y = coord_list[0][1]
+            w = coord_list[1]
+            h = coord_list[2]
+            bbox = [int(x), int(y), int(w), int(h)]
+            print("bbox:", bbox)
+            return bbox
+        else:
+            return False
+
+    def object_tracking(self, frame, bbox):
+        tracker = cv2.TrackerCSRT_create()
+        ok = tracker.init(frame, bbox)
+        ok, bbox = tracker.update(frame)
+        if ok:
+            print("obect tracking한 bbox", bbox)
+            # TODO: 라벨 저장하기
+            bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
+            label = self.dd.frame_label_check(self.dd.frame_number)[0]
+            color = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['color']
+
+            self.dd.add_label('rectangle', label, bbox_, color)
+            print(self.dd.frame_label_dict)

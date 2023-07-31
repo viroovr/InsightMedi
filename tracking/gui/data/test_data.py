@@ -86,10 +86,10 @@ class DcmData():
         self.video_player = cv2.VideoCapture()
         self.video_player.open(fname[0])
         self.total_frame = int(self.video_player.get(cv2.CAP_PROP_FRAME_COUNT))
-
-        ret, frame = self.video_player.read()
+        
+        ret, self.frame = self.video_player.read()
         if ret:
-            self.image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
 
     def delete_label_file(self, file_name):
         file_path = f"{self.label_dir}/{file_name}.txt"
