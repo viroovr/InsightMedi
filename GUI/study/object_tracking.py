@@ -1,9 +1,9 @@
 import cv2
 print(cv2.__version__)
-tracker = cv2.TrackerKCF_create()
-#tracker = cv2.TrackerCSRT_create()
+#tracker = cv2.TrackerKCF_create()
+tracker = cv2.TrackerCSRT_create()
 
-video = cv2.VideoCapture('sample\street')   # 영상 불러오기
+video = cv2.VideoCapture('sample\street.mp4')   # 영상 불러오기
 
 ok, frame = video.read()   # ok: opencv에서 영상을 읽을 수 있는 지 / frame: 영상의 frame
 
