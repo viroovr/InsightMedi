@@ -357,10 +357,16 @@ class Controller():
         ok, bbox = self.tracker.update(frame)
         if ok:
             print("obect tracking한 bbox", bbox)
-            # TODO: 라벨 저장하기
-            bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
-            label = self.dd.frame_label_check(self.dd.frame_number)[0]
-            color = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['color']
 
-            self.dd.add_label( 'rectangle', label, bbox_, color, frame_number = self.dd.frame_number + 1)
-            print(self.dd.frame_label_dict)
+            # 새로운 라벨 저장을 위해 필요한 데이터들
+            bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
+            print(self.dd.frame_label_check(self.dd.frame_number - 1))
+            label = self.dd.frame_label_check(self.dd.frame_number - 1)[0]
+            color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
+
+            # 라벨 그리기 및 저장
+            self.ax.add_patch(
+                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
+            self.canvas.draw()
+            self.dd.add_label( 'rectangle', label, bbox_, color, frame_number = self.dd.frame_number)
+            #print(self.dd.frame_label_dict)
