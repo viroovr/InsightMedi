@@ -6,6 +6,7 @@ tracker = cv2.TrackerCSRT_create()
 video = cv2.VideoCapture('sample\street.mp4')   # 영상 불러오기
 
 ok, frame = video.read()   # ok: opencv에서 영상을 읽을 수 있는 지 / frame: 영상의 frame
+
 bbox = cv2.selectROI(frame)   # 첫 번쨰 frame의 정보만 저장하고 있음
 #print(bbox)   # bounding box 위치
 
