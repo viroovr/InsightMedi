@@ -124,6 +124,7 @@ class Controller():
 
         if self.selector_mode == 'selector':
             # 현재 선택된 artist를 self.artist로 저장시켜 다른 함수에서 접근 가능하게 합니다.
+            self.gui.is_tracking = False
             self.select_only_current_edge(event.artist)
             self.annotation = event.artist
 
@@ -354,12 +355,9 @@ class Controller():
             bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
-        bbox = []
-        if self.dd.file_mode == 'mp4' and label_list:
-            if self.annotation is not None:
-                label = self.annotation.get_label()
-            else:
-                label = label_list[0]
+        if self.dd.file_mode == 'mp4' and label_list and self.artist:
+            label = self.artist.get_label()
+            print("object tracking으로 선택된 label:",label)
             coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
             x = coord_list[0][0]
             y = coord_list[0][1]
@@ -371,6 +369,7 @@ class Controller():
     
     def object_tracking(self, frame, bbox, init=False):
         if init:
+            print("tracker 초기화")
             self.tracker = cv2.TrackerCSRT_create()
             ok = self.tracker.init(frame, bbox)
             
@@ -381,7 +380,7 @@ class Controller():
             # 새로운 라벨 저장을 위해 필요한 데이터들
             bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
             print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            label = self.dd.frame_label_check(self.dd.frame_number - 1)[0]
+            label = self.artist.get_label()
             color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
 
             # 라벨 그리기 및 저장
