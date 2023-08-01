@@ -1,7 +1,9 @@
 import cv2
 print(cv2.__version__)
+# print(dir(cv2))
 #tracker = cv2.TrackerKCF_create()
-tracker = cv2.TrackerCSRT_create()
+# tracker = cv2.TrackerCSRT_create()
+tracker = cv2.TrackerGOTURN_create()
 
 video = cv2.VideoCapture('sample\street.mp4')   # 영상 불러오기
 

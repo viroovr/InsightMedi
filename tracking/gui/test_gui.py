@@ -140,6 +140,8 @@ class MyWindow(QMainWindow):
             QIcon('gui/icon/delete_all_icon.png'), "Delete All", self)
         delete_all_action.triggered.connect(self.delete_all)
         toolbar.addAction(delete_all_action)
+        
+        self.is_tracking = False
 
     def closeEvent(self, event):
         # mainWindow종료시 할당된 메모리 해제하기
@@ -390,6 +392,14 @@ class MyWindow(QMainWindow):
                     frame = self.frame
                 except AttributeError:
                     frame = self.dd.frame
-                self.cl.object_tracking(frame, bbox)    # object tracking 한 결과 나온 라벨링 그리기
+                if not self.is_tracking:
+                    self.cl.object_tracking(frame, bbox, init=True)    # object tracking 한 결과 나온 라벨링 그리기
+                    self.is_tracking = True
+                else:
+                    self.cl.object_tracking(frame, bbox)    # object tracking 한 결과 나온 라벨링 그리기
+                    
                 self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+        elif event.key() == Qt.Key_R:
+            print("r 키 눌림")
+            self.is_tracking = False
                 
