@@ -61,12 +61,14 @@ class DcmData():
             with open(f"{self.label_dir}/{key}.txt", 'w') as f:
                 f.write(json.dumps(self.frame_label_dict[key]))
 
-    def add_label(self, drawing_type, label_name, coords, color="red"):
+    def add_label(self, drawing_type, label_name, coords, color="red", frame_number=None):
+        if frame_number is None:
+            frame_number = self.frame_number
         try:
-            frame_dict = self.frame_label_dict[self.frame_number]
+            frame_dict = self.frame_label_dict[frame_number]
         except KeyError:
-            self.frame_label_dict[self.frame_number] = {}
-            frame_dict = self.frame_label_dict[self.frame_number]   # {}
+            self.frame_label_dict[frame_number] = {}
+            frame_dict = self.frame_label_dict[frame_number]   # {}
 
         try:
             label_type_dict = frame_dict[drawing_type]
@@ -133,9 +135,9 @@ class DcmData():
                 for label in label_dict:
                     label_list.append(label)
 
-            if len(label_list) == 0:
-                return False
-            else:
+            if label_list:
                 return label_list
+
         except KeyError:
-            return False
+            pass
+        return False

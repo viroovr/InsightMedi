@@ -32,6 +32,7 @@ class Controller():
         self.end = None
         self.is_drawing = False
 
+        
         self.press = None
         self.artist = None
 
@@ -347,11 +348,13 @@ class Controller():
             return bbox
         else:
             return False
-
-    def object_tracking(self, frame, bbox):
-        tracker = cv2.TrackerCSRT_create()
-        ok = tracker.init(frame, bbox)
-        ok, bbox = tracker.update(frame)
+    
+    def object_tracking(self, frame, bbox, init=False):
+        if init:
+            self.tracker = cv2.TrackerCSRT_create()
+            ok = self.tracker.init(frame, bbox)
+            
+        ok, bbox = self.tracker.update(frame)
         if ok:
             print("obect tracking한 bbox", bbox)
             # TODO: 라벨 저장하기
@@ -359,5 +362,5 @@ class Controller():
             label = self.dd.frame_label_check(self.dd.frame_number)[0]
             color = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['color']
 
-            self.dd.add_label('rectangle', label, bbox_, color)
+            self.dd.add_label( 'rectangle', label, bbox_, color, frame_number = self.dd.frame_number + 1)
             print(self.dd.frame_label_dict)
