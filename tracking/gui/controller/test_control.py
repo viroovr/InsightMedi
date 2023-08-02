@@ -116,11 +116,6 @@ class Controller():
 
     # selector events
     def selector_on_pick(self, event):
-        print(event.artist)
-        if event.artist is None:
-            self.select_off_all()
-            return
-
         if self.selector_mode == 'selector':
             # 현재 선택된 artist를 self.artist로 저장시켜 다른 함수에서 접근 가능하게 합니다.
             self.gui.is_tracking = False
@@ -133,14 +128,20 @@ class Controller():
         선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
         if self.annotation is None:
+            # print("annotation is none")
             return
         if event.inaxes != self.annotation.axes:
+            # print("not in axes")
+            self.select_off_all()
             return
         if self.selector_mode != 'selector':
+            # print("mode is not selector")
             return
         
         contains, attrd = self.annotation.contains(event)
         if not contains:
+            self.select_off_all()
+            # print("not contatins")
             return
 
         xdata, ydata = self.annotation.xy
@@ -166,6 +167,8 @@ class Controller():
         self.canvas.draw()
 
     def selector_on_release(self, event):
+        if self.annotation is None:
+            return
         self.canvas.draw()
         self.modify_label_data(self.annotation)
         self.press = None
@@ -297,6 +300,7 @@ class Controller():
             self.set_edge_thick(patch)
         for patch in self.ax.lines:
             self.set_edge_thick(patch)
+        self.canvas.draw()
         self.annotation = None
 
     def label_clicked(self, frame, _label_name=None):

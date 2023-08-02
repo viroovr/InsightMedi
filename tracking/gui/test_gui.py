@@ -409,3 +409,7 @@ class MyWindow(QMainWindow):
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
             self.cl.remove_annotation()
+        
+        elif event.key() == Qt.Key_Escape:
+            print('esc키 눌림')
+            self.cl.select_off_all()
