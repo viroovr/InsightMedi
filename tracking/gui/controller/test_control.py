@@ -221,7 +221,8 @@ class Controller():
                 if self.is_drawing is False:
                     self.dd.add_label("rectangle", label_class,
                                       ((x, y), width, height), color)
-
+                    
+            #self.artist = self.annotation
             self.set_edge_thick(self.annotation, line_width=3)
             self.canvas.draw()
 
@@ -337,17 +338,19 @@ class Controller():
             bbox (bool or list): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
-        if self.dd.file_mode == 'mp4' and label_list and self.artist:
+        next_label_list = self.dd.frame_label_check(self.dd.frame_number + 1)
+        if self.dd.file_mode == 'mp4' and label_list and self.artist:    # 현재 프레임의 상태 확인
             label = self.artist.get_label()
-            print("object tracking으로 선택된 label:",label)
-            coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
-            x = coord_list[0][0]
-            y = coord_list[0][1]
-            w = coord_list[1]
-            h = coord_list[2]
-            bbox = [int(x), int(y), int(w), int(h)]
-            print("bbox:", bbox)
-            return bbox
+            if not next_label_list or label not in next_label_list:   # 다음 프레임의 상태 확인
+                print("object tracking으로 선택된 label:",label)
+                coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
+                x = coord_list[0][0]
+                y = coord_list[0][1]
+                w = coord_list[1]
+                h = coord_list[2]
+                bbox = [int(x), int(y), int(w), int(h)]
+                print("bbox:", bbox)
+                return bbox
         else:
             return False
     
@@ -356,7 +359,7 @@ class Controller():
             print("tracker 초기화")
             self.tracker = cv2.TrackerCSRT_create()
             ok = self.tracker.init(frame, bbox)
-            
+
         ok, bbox = self.tracker.update(frame)
         if ok:
             print("obect tracking한 bbox", bbox)
@@ -365,11 +368,12 @@ class Controller():
             bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
             print(self.dd.frame_label_check(self.dd.frame_number - 1))
             label = self.artist.get_label()
-            color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
+            color = self.dd.frame_label_dict[self.dd.frame_number -1]['rectangle'][label]['color']
 
             # 라벨 그리기 및 저장
             self.ax.add_patch(
-                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
+                Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
             self.canvas.draw()
-            self.dd.add_label( 'rectangle', label, bbox_, color, frame_number = self.dd.frame_number)
+            self.dd.add_label('rectangle', label, bbox_, color,
+                              frame_number=self.dd.frame_number)
             #print(self.dd.frame_label_dict)

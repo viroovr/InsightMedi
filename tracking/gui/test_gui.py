@@ -244,7 +244,7 @@ class MyWindow(QMainWindow):
                 self.dd.delete_label(label, frame)
                 self.cl.erase_annotation(label)
         
-        self.is_tracking = False
+        #self.is_tracking = False
 
         if self.cl.annotation_mode == "line":
             self.draw_straight_line(label)
