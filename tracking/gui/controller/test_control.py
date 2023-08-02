@@ -55,7 +55,6 @@ class Controller():
         self.label_name = label
         self.start = None
         self.end = None
-        self.annotation = None
         self.is_drawing = False
 
         self.selector_mode = "drawing"
@@ -133,7 +132,6 @@ class Controller():
         선택된 라벨이 self.annotation에 저장되어있어야 하며
         선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
-        print(self.annotation)
         if self.annotation is None:
             return
         if event.inaxes != self.annotation.axes:
@@ -287,6 +285,7 @@ class Controller():
             annotataion(annotation): 선 또는 도형 객체입니다.
         """
         self.select_off_all()
+        self.annotation = annotation
         self.set_edge_thick(annotation, line_width=3)
         self.canvas.draw()
 
@@ -307,17 +306,19 @@ class Controller():
         Args:
             _label_name(string): 해당 라벨의 두께를 두껍게 합니다.
         """
+        annotation = self.annotation
         self.erase_all_annotation()
         frame_directory = self.dd.frame_label_dict[frame]
-        if _label_name is None and self.annotation is not None:
+        if _label_name is None and annotation is not None:
+            self.annotation = annotation
             _label_name = self.annotation.get_label()
+
         for drawing_type in frame_directory:
             label_directory = frame_directory[drawing_type]
             for label in label_directory:
                 ld = label_directory[label]
                 coords = ld["coords"]
                 color = ld["color"]
-                annotation = None
 
                 if drawing_type == "rectangle":
                     # print("현재 label은 사각형임", ld['rectangle'])
@@ -355,8 +356,9 @@ class Controller():
             bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
-        if self.dd.file_mode == 'mp4' and label_list and self.artist:
-            label = self.artist.get_label()
+        bbox = []
+        if self.dd.file_mode == 'mp4' and label_list and self.annotation:
+            label = self.annotation.get_label()
             print("object tracking으로 선택된 label:",label)
             coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
             x = coord_list[0][0]
@@ -372,7 +374,7 @@ class Controller():
             print("tracker 초기화")
             self.tracker = cv2.TrackerCSRT_create()
             ok = self.tracker.init(frame, bbox)
-            
+    
         ok, bbox = self.tracker.update(frame)
         if ok:
             print("obect tracking한 bbox", bbox)
@@ -380,7 +382,7 @@ class Controller():
             # 새로운 라벨 저장을 위해 필요한 데이터들
             bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
             print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            label = self.artist.get_label()
+            label = self.annotation.get_label()
             color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
 
             # 라벨 그리기 및 저장

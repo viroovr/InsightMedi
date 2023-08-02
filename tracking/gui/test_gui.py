@@ -270,7 +270,7 @@ class MyWindow(QMainWindow):
         if self.dd.file_mode == "mp4":
             self.dd.frame_number = frame
             self.slider.setValue(frame)
-
+        
         self.cl.label_clicked(frame, label)
 
     def disable_total_label(self):
@@ -391,14 +391,8 @@ class MyWindow(QMainWindow):
                     frame = self.frame
                 except AttributeError:
                     frame = self.dd.frame
-<<<<<<< HEAD
-
-                self.slider.setValue(
-                    self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-=======
                 
                 self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
->>>>>>> 4e06eca3d96bb56c2b973994400124c00c05b2d7
 
                 if not self.is_tracking:
                     # object tracking 한 결과 나온 라벨링 그리기
@@ -410,12 +404,8 @@ class MyWindow(QMainWindow):
 
         elif event.key() == Qt.Key_R:
             print("r 키 눌림")
-<<<<<<< HEAD
             self.is_tracking = False
 
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
             self.cl.remove_annotation()
-=======
-            self.is_tracking = False
->>>>>>> 4e06eca3d96bb56c2b973994400124c00c05b2d7
