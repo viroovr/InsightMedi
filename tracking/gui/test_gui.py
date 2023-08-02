@@ -140,7 +140,7 @@ class MyWindow(QMainWindow):
             QIcon('gui/icon/delete_all_icon.png'), "Delete All", self)
         delete_all_action.triggered.connect(self.delete_all)
         toolbar.addAction(delete_all_action)
-        
+
         self.is_tracking = False
 
     def closeEvent(self, event):
@@ -244,7 +244,7 @@ class MyWindow(QMainWindow):
                 self.dd.delete_label(label, frame)
                 self.cl.erase_annotation(label)
         
-        #self.is_tracking = False
+        self.is_tracking = False
 
         if self.cl.annotation_mode == "line":
             self.draw_straight_line(label)
@@ -270,7 +270,7 @@ class MyWindow(QMainWindow):
         if self.dd.file_mode == "mp4":
             self.dd.frame_number = frame
             self.slider.setValue(frame)
-
+        
         self.cl.label_clicked(frame, label)
 
     def disable_total_label(self):
@@ -300,9 +300,6 @@ class MyWindow(QMainWindow):
         else:
             print(f"{_label_name} 라벨에 대한 버튼을 찾을 수 없음")
         self.label_layout.update()
-
-        # data에서 해당 라벨이름 정보 제거하기
-        self.dd.delete_label(_label_name)
 
     def save(self):
         # 저장 기능 구현
@@ -396,13 +393,22 @@ class MyWindow(QMainWindow):
                     frame = self.dd.frame
                 
                 self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-
                 if not self.is_tracking:
-                    self.cl.object_tracking(frame, bbox, init=True)    # object tracking 한 결과 나온 라벨링 그리기
+                    # object tracking 한 결과 나온 라벨링 그리기
+                    self.cl.object_tracking(frame, bbox, init=True)
                     self.is_tracking = True
                 else:
-                    self.cl.object_tracking(frame, bbox)    # object tracking 한 결과 나온 라벨링 그리기
-                
+                    # object tracking 한 결과 나온 라벨링 그리기
+                    self.cl.object_tracking(frame, bbox)
+
         elif event.key() == Qt.Key_R:
             print("r 키 눌림")
             self.is_tracking = False
+
+        elif event.key() == Qt.Key_Delete:
+            print("delete 키 눌림")
+            self.cl.remove_annotation()
+        
+        elif event.key() == Qt.Key_Escape:
+            print('esc키 눌림')
+            self.cl.select_off_all()

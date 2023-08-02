@@ -34,7 +34,6 @@ class Controller():
 
         
         self.press = None
-        self.artist = None
 
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
@@ -56,7 +55,6 @@ class Controller():
         self.label_name = label
         self.start = None
         self.end = None
-        self.annotation = None
         self.is_drawing = False
 
         self.selector_mode = "drawing"
@@ -68,14 +66,10 @@ class Controller():
 
     def init_selector(self, mode):
         self.set_mpl_disconnect()
-        self.artist = None
         self.press = None
         if mode == "delete":
             self.selector_mode = 'selector'
             self.annotation_mode = mode
-            cid4 = self.canvas.mpl_connect(
-                'key_press_event', self.selector_key_on_press)
-            self.cid.append(cid4)
         elif mode == 'selector':
             self.selector_mode = mode
             self.annotation_mode = None
@@ -122,42 +116,43 @@ class Controller():
 
     # selector events
     def selector_on_pick(self, event):
-        if event.artist is None:
-            return
-
         if self.selector_mode == 'selector':
             # 현재 선택된 artist를 self.artist로 저장시켜 다른 함수에서 접근 가능하게 합니다.
             self.gui.is_tracking = False
             self.select_only_current_edge(event.artist)
-            self.artist = event.artist
-            # print(f"label name : {self.artist.get_label()}")
-            if self.annotation_mode == 'delete':
-                self.artist.remove()
-                self.canvas.draw()
-                self.delete_label(self.artist.get_label())
+            self.annotation = event.artist
 
     def selector_on_press(self, event):
         """
-        선택된 라벨이 self.artist에 저장되어있어야 하며
+        선택된 라벨이 self.annotation에 저장되어있어야 하며
         선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
-        if self.artist is None:
+        if self.annotation is None:
+            # print("annotation is none")
             return
-        if event.inaxes != self.artist.axes:
+        if event.inaxes != self.annotation.axes:
+            # print("not in axes")
+            self.select_off_all()
             return
-        contains, attrd = self.artist.contains(event)
+        if self.selector_mode != 'selector':
+            # print("mode is not selector")
+            return
+        
+        contains, attrd = self.annotation.contains(event)
         if not contains:
+            self.select_off_all()
+            # print("not contatins")
             return
 
-        xdata, ydata = self.artist.xy
+        xdata, ydata = self.annotation.xy
 
         self.press = (xdata, ydata), (event.xdata, event.ydata)
         # print(f"self press is {self.press}")
 
     def selector_on_move(self, event):
-        """마우스로 드래그하면 self.artist를 움직일 수 있게 합니다."""
+        """마우스로 드래그하면 self.annotation를 움직일 수 있게 합니다."""
 
-        if self.press is None:
+        if self.press is None or self.selector_mode != 'selector':
             return
 
         (x0, y0), (xpress, ypress) = self.press
@@ -166,14 +161,16 @@ class Controller():
 
         # print(f'x0={x0}, xpress={xpress}, event.xdata={event.xdata}, '
         #       f'dx={dx}, x0+dx={x0+dx}')
-        self.artist.set_x(x0 + dx)
-        self.artist.set_y(y0 + dy)
+        self.annotation.set_x(x0 + dx)
+        self.annotation.set_y(y0 + dy)
 
         self.canvas.draw()
 
     def selector_on_release(self, event):
+        if self.annotation is None:
+            return
         self.canvas.draw()
-        self.modify_label_data(self.artist)
+        self.modify_label_data(self.annotation)
         self.press = None
 
     def selector_key_on_press(self, event):
@@ -200,7 +197,6 @@ class Controller():
             self.is_drawing = False
             self.end = (event.xdata, event.ydata)
             self.draw_annotation(self.color)
-            self.annotation = None
             self.gui.selector()
 
     def draw_annotation(self, color="red"):
@@ -227,10 +223,30 @@ class Controller():
             self.canvas.draw()
 
     # delete or remove functions
+    def remove_annotation(self, annotation=None):
+        if self.annotation is None:
+            return
+        if annotation is None:
+            annotation = self.annotation
+        annotation.remove()
+        self.canvas.draw()
+        self.delete_label(self.annotation.get_label())
 
     def delete_label(self, label_name):
         """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
-        self.gui.disable_label_button(label_name)
+        count = 0
+        gui = True
+        for frame in self.dd.frame_label_dict.values():
+            for data in frame.values():
+                if label_name in data:
+                    count += 1
+                    if count > 2:
+                        gui = False
+                        break
+        if gui:
+            self.gui.disable_label_button(label_name)
+        # data에서 해당 라벨이름 정보 제거하기
+        self.dd.delete_label(label_name)
 
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
@@ -249,6 +265,7 @@ class Controller():
             patch.remove()
         for patch in self.ax.lines:
             patch.remove()
+        self.annotation = None
         self.canvas.draw()
 
     # modify functions
@@ -257,7 +274,7 @@ class Controller():
         변경된 객체의 좌표값들을 읽어와 self.dd에 저장합니다.
 
         Args:
-            ar(artist): artist 객체를 인자로 주어야 합니다.
+            ar(annotation): annotation 객체를 인자로 주어야 합니다.
         """
         ret_points = (ar.get_xy(), ar.get_width(), ar.get_height())
         color = self.get_color(ar)
@@ -269,9 +286,10 @@ class Controller():
         현재 self.ax에서 주어진 annotation만 두께를 강조합니다.
 
         Args:
-            annotataion(artist): 선 또는 도형 객체입니다.
+            annotataion(annotation): 선 또는 도형 객체입니다.
         """
         self.select_off_all()
+        self.annotation = annotation
         self.set_edge_thick(annotation, line_width=3)
         self.canvas.draw()
 
@@ -283,6 +301,8 @@ class Controller():
             self.set_edge_thick(patch)
         for patch in self.ax.lines:
             self.set_edge_thick(patch)
+        self.canvas.draw()
+        self.annotation = None
 
     def label_clicked(self, frame, _label_name=None):
         """
@@ -291,8 +311,12 @@ class Controller():
         Args:
             _label_name(string): 해당 라벨의 두께를 두껍게 합니다.
         """
+        annotation = self.annotation
         self.erase_all_annotation()
         frame_directory = self.dd.frame_label_dict[frame]
+        if _label_name is None and annotation is not None:
+            self.annotation = annotation
+            _label_name = self.annotation.get_label()
 
         for drawing_type in frame_directory:
             label_directory = frame_directory[drawing_type]
@@ -300,7 +324,6 @@ class Controller():
                 ld = label_directory[label]
                 coords = ld["coords"]
                 color = ld["color"]
-                annotation = None
 
                 if drawing_type == "rectangle":
                     # print("현재 label은 사각형임", ld['rectangle'])
@@ -335,13 +358,14 @@ class Controller():
         object tracking이 가능한 상태인 지 확인하고, bbox를 반환합니다.
 
         Returns:
-            bbox (bool or list): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
+            bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
-        next_label_list = self.dd.frame_label_check(self.dd.frame_number + 1)
-        if self.dd.file_mode == 'mp4' and label_list and self.artist:    # 현재 프레임의 상태 확인
-            label = self.artist.get_label()
-            if not next_label_list or label not in next_label_list:   # 다음 프레임의 상태 확인
+        next_label_list = self.dd.frame_label_check(self.dd.frame_number+ 1)
+        bbox = []
+        if self.dd.file_mode == 'mp4' and label_list and self.annotation:
+            label = self.annotation.get_label()
+            if label not in next_label_list:
                 print("object tracking으로 선택된 label:",label)
                 coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
                 x = coord_list[0][0]
@@ -350,16 +374,15 @@ class Controller():
                 h = coord_list[2]
                 bbox = [int(x), int(y), int(w), int(h)]
                 print("bbox:", bbox)
-                return bbox
-        else:
-            return False
+        return bbox
+
     
     def object_tracking(self, frame, bbox, init=False):
         if init:
             print("tracker 초기화")
             self.tracker = cv2.TrackerCSRT_create()
             ok = self.tracker.init(frame, bbox)
-
+    
         ok, bbox = self.tracker.update(frame)
         if ok:
             print("obect tracking한 bbox", bbox)
@@ -367,12 +390,13 @@ class Controller():
             # 새로운 라벨 저장을 위해 필요한 데이터들
             bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
             print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            label = self.artist.get_label()
-            color = self.dd.frame_label_dict[self.dd.frame_number -1]['rectangle'][label]['color']
+            label = self.annotation.get_label()
+            color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
 
             # 라벨 그리기 및 저장
-            self.ax.add_patch(
-                Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
+            self.annotation = self.ax.add_patch(
+                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
+            self.set_edge_thick(self.annotation, line_width=3)
             self.canvas.draw()
             self.dd.add_label('rectangle', label, bbox_, color,
                               frame_number=self.dd.frame_number)

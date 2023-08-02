@@ -88,7 +88,7 @@ class DcmData():
         self.video_player = cv2.VideoCapture()
         self.video_player.open(fname[0])
         self.total_frame = int(self.video_player.get(cv2.CAP_PROP_FRAME_COUNT))
-        
+
         ret, self.frame = self.video_player.read()
         if ret:
             self.image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
@@ -136,9 +136,7 @@ class DcmData():
                 for label in label_dict:
                     label_list.append(label) """
 
-            if label_list:
-                return label_list
-
         except KeyError:
-            pass
-        return False
+            label_list = []
+
+        return label_list
