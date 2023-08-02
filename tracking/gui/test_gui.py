@@ -380,7 +380,9 @@ class MyWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
-            self.disable_total_label()    # label 버튼 비활성화
+            #self.disable_total_label()    # label 버튼 비활성화
+            for label_name in self.dd.frame_label_check(self.dd.frame_number):
+                self.cl.delete_label(label_name)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:

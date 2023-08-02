@@ -130,7 +130,7 @@ class DcmData():
     def frame_label_check(self, frame):
         try:
             frame_dict = self.frame_label_dict[frame]
-            label_list = frame_dict['rectangle'].keys()
+            label_list = list(frame_dict['rectangle'].keys())
             print("label list 확인:", label_list)
             """ for _, label_dict in frame_dict.items():
                 for label in label_dict:
