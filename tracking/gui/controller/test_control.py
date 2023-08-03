@@ -224,13 +224,19 @@ class Controller():
 
     # delete or remove functions
     def remove_annotation(self, annotation=None):
+        """ annotation이 주어지면 annotation을 지우고 
+            주어지지 않는 경우, self.annotation을 지웁니다.
+
+        Args:
+            annotation (Line2D or Rectangle): 선이나 도형 객체. Defaults to None.
+        """
         if self.annotation is None:
             return
         if annotation is None:
             annotation = self.annotation
         annotation.remove()
         self.canvas.draw()
-        self.delete_label(self.annotation.get_label())
+        self.delete_label(annotation.get_label())
 
     def delete_label(self, label_name):
         """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
