@@ -35,12 +35,12 @@ class MyWindow(QMainWindow):
         self.cl = Controller(self.dd, self.canvas, self)
 
         # label list
-        self.label_list = QWidget()
+        # self.label_list = QWidget()
         self.label_layout = QVBoxLayout()
-        self.label_list.setLayout(self.label_layout)
+        # self.label_list.setLayout(self.label_layout)
         self.buttons = {}
 
-        for i in range(5):
+        for i in range(8):
             self.button_layout = QHBoxLayout()
             label_name = "label %d" % (i + 1)
             self.label_button = QPushButton(label_name)
@@ -64,36 +64,37 @@ class MyWindow(QMainWindow):
             self.label_go_buttons = [self.label_button, self.go_button]
             self.buttons[label_name] = self.label_go_buttons
 
-        # slider and play button
+        # slider
+        self.slider_layout = QHBoxLayout()
         self.slider = QSlider(Qt.Horizontal)
+        self.slider_layout.addWidget(self.slider)
+
+        # Frame label
+        self.frame_label = QLabel("")
+        self.frame_label.setStyleSheet("color: lightgray;")
+        self.slider_layout.addWidget(self.frame_label)
+
+        # play button
         self.play_button = QPushButton("Play")
         self.play_button.setStyleSheet("color: lightgray; height: 20px")
         self.play_button.setFocusPolicy(Qt.NoFocus)
         self.video_status = None
 
-        self.label_scroll_area = QScrollArea()
-        self.label_scroll_area.setWidget(self.label_list)
-        self.label_scroll_area.setWidgetResizable(True)
-
-        # Frame label
-        self.frame_label = QLabel("")
-        self.frame_label.setStyleSheet("color: lightgray;")
-
         # GUI Layout
         grid_box = QGridLayout(self.main_widget)
         grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        grid_box.setColumnStretch(1, 1)   # column 1 width 1
+        #grid_box.setColumnStretch(1, 1)   # column 1 width 1
 
         # column 0
-        grid_box.addWidget(self.canvas, 0, 0, 8, 2)
-        grid_box.addWidget(self.slider, 8, 0)
+        grid_box.addWidget(self.canvas, 0, 0, 8, 1)
+        grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        grid_box.addWidget(self.frame_label, 8, 1)
+        #grid_box.addWidget(self.frame_label, 8, 1)
 
         # column 2
-        grid_box.addWidget(self.label_scroll_area, 0, 2, 5, 1)
-        grid_box.addWidget(self.play_button, 5, 2)
+        grid_box.addLayout(self.label_layout, 0, 1)
+        grid_box.addWidget(self.play_button, 1, 1)
 
         # 창 중앙 정렬
         screen_geometry = QApplication.desktop().availableGeometry()
