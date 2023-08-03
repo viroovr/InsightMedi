@@ -24,14 +24,15 @@ class Controller():
         # self.ax.tick_params(axis = 'y', colors = 'gray')
 
         self.annotation_mode = None
-        self.annotation = None
+        self.annotation = []
+        self.current_annotation = None
         self.selector_mode = None
         self.cid = []
 
         self.start = None
         self.end = None
         self.is_drawing = False
-
+        self.is_move = False
         
         self.press = None
 
@@ -66,7 +67,8 @@ class Controller():
 
     def init_selector(self, mode):
         self.set_mpl_disconnect()
-        self.press = None
+        self.start = None
+        self.end = None
         if mode == "delete":
             self.selector_mode = 'selector'
             self.annotation_mode = mode
@@ -117,67 +119,80 @@ class Controller():
     # selector events
     def selector_on_pick(self, event):
         if self.selector_mode == 'selector':
+            modifier = event.mouseevent.modifiers
             # 현재 선택된 artist를 self.artist로 저장시켜 다른 함수에서 접근 가능하게 합니다.
-            self.gui.is_tracking = False
-            self.select_only_current_edge(event.artist)
-            self.annotation = event.artist
+            if 'ctrl' in modifier and len(modifier) == 1:
+                print('ctrl + click')
+                print(self.annotation)
+                self.gui.is_tracking = False
+                if event.artist in self.annotation:
+                    # print("annotation에 이미 있을 경우 해제합니다.")
+                    self.set_edge_thick(event.artist)
+                    self.annotation.remove(event.artist)
+                    self.canvas.draw()
+                else:
+                    # print("annotation에 없을 경우 annotation에 추가합니다.")
+                    self.select_current_edge(event.artist, append=True)
+                
+            elif len(self.annotation) > 1:
+                print('click')
+                # self.select_current_edge(event.artist)
+            else:
+                print('click')
+                self.select_current_edge(event.artist)
 
     def selector_on_press(self, event):
         """
         선택된 라벨이 self.annotation에 저장되어있어야 하며
         선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
-        if self.annotation is None:
+        if not self.annotation and self.selector_mode != 'selector':
             # print("annotation is none")
             return
-        if event.inaxes != self.annotation.axes:
-            # print("not in axes")
-            self.select_off_all()
-            return
-        if self.selector_mode != 'selector':
-            # print("mode is not selector")
-            return
-        
-        contains, attrd = self.annotation.contains(event)
-        if not contains:
-            self.select_off_all()
-            # print("not contatins")
-            return
+        # if event.inaxes != self.annotation.axes:
+        #     # print("not in axes")
+        #     self.select_off_all()
+        #     return
+        if event.button == 1:
+            self.start = []
+            # print(self.annotation)
+            for an in self.annotation:
+                # contains, attrd = an.contains(event)
+                # if not contains:
+                #     # print("not contatins")
+                #     return
+                self.start.append((an.xy, (event.xdata, event.ydata)))
 
-        xdata, ydata = self.annotation.xy
-
-        self.press = (xdata, ydata), (event.xdata, event.ydata)
+            self.is_move = True
         # print(f"self press is {self.press}")
 
     def selector_on_move(self, event):
         """마우스로 드래그하면 self.annotation를 움직일 수 있게 합니다."""
-
-        if self.press is None or self.selector_mode != 'selector':
+        if self.start is None or self.selector_mode != 'selector' or not self.is_move:
             return
-
-        (x0, y0), (xpress, ypress) = self.press
-        dx = event.xdata - xpress
-        dy = event.ydata - ypress
-
-        # print(f'x0={x0}, xpress={xpress}, event.xdata={event.xdata}, '
-        #       f'dx={dx}, x0+dx={x0+dx}')
-        self.annotation.set_x(x0 + dx)
-        self.annotation.set_y(y0 + dy)
+        
+        for i, an in enumerate(self.annotation):
+            # print(self.start[i])
+            (x0, y0), (xpress, ypress) = self.start[i]
+            # print(x0, y0, xpress, ypress)
+            dx = event.xdata - xpress
+            dy = event.ydata - ypress
+            
+            an.set_x(x0 + dx)
+            an.set_y(y0 + dy)
 
         self.canvas.draw()
 
     def selector_on_release(self, event):
-        if self.annotation is None:
+        if not self.annotation and not self.is_move:
             return
-        self.canvas.draw()
-        self.modify_label_data(self.annotation)
-        self.press = None
+        if event.button == 1:
+            self.is_move = False
+            for an in self.annotation:
+                self.modify_label_data(an)
+            self.start = None
+            self.end = None
 
-    def selector_key_on_press(self, event):
-        print(event.key)
-        print(dir(event))
-        if event.key == "delete":
-            print("delete press")
 
     # draw annotation events
     def on_mouse_press(self, event):
@@ -201,9 +216,9 @@ class Controller():
 
     def draw_annotation(self, color="red"):
         if self.start and self.end and self.selector_mode == "drawing":
-            if self.annotation:
+            if self.current_annotation:
                 # 연속적인 라벨의 그림을 보여주기 위해 이전 annotation을 제거해줍니다.
-                self.annotation.remove()
+                self.current_annotation.remove()
 
             label_class = self.label_name
 
@@ -212,14 +227,15 @@ class Controller():
                 height = abs(self.start[1] - self.end[1])
                 x = min(self.start[0], self.end[0])
                 y = min(self.start[1], self.end[1])
-                self.annotation = self.ax.add_patch(
+                self.current_annotation =  self.ax.add_patch(
                     Rectangle((x, y), width, height, fill=False, picker=True, label=label_class, edgecolor=color))
                 if self.is_drawing is False:
+                    self.annotation.append(self.current_annotation)
                     self.dd.add_label("rectangle", label_class,
                                       ((x, y), width, height), color)
                     
             #self.artist = self.annotation
-            self.set_edge_thick(self.annotation, line_width=3)
+            self.set_edge_thick(self.current_annotation, line_width=3)
             self.canvas.draw()
 
     # delete or remove functions
@@ -281,7 +297,7 @@ class Controller():
             patch.remove()
         for patch in self.ax.lines:
             patch.remove()
-        self.annotation = None
+        self.annotation = []
         self.canvas.draw()
 
     # modify functions
@@ -297,15 +313,18 @@ class Controller():
         self.dd.modify_label_data(ar.get_label(), ret_points, color)
 
     # select functions
-    def select_only_current_edge(self, annotation):
+    def select_current_edge(self, annotation, append=False):
         """
-        현재 self.ax에서 주어진 annotation만 두께를 강조합니다.
+        현재 self.ax에서 선택한 annotation만 두께를 강조합니다.
 
         Args:
             annotataion(annotation): 선 또는 도형 객체입니다.
         """
-        self.select_off_all()
-        self.annotation = annotation
+        if not append:
+            # ctrl click이 아닐 시 다른 강조들을 해제합니다.
+            print("모두 해제")
+            self.select_off_all()
+        self.annotation.append(annotation)
         self.set_edge_thick(annotation, line_width=3)
         self.canvas.draw()
 
@@ -318,7 +337,8 @@ class Controller():
         for patch in self.ax.lines:
             self.set_edge_thick(patch)
         self.canvas.draw()
-        self.annotation = None
+        self.current_annotation = None
+        self.annotation = []
 
     def label_clicked(self, frame, _label_name=None):
         """
