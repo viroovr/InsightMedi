@@ -35,12 +35,12 @@ class MyWindow(QMainWindow):
         self.cl = Controller(self.dd, self.canvas, self)
 
         # label list
-        self.label_list = QWidget()
+        # self.label_list = QWidget()
         self.label_layout = QVBoxLayout()
-        self.label_list.setLayout(self.label_layout)
+        # self.label_list.setLayout(self.label_layout)
         self.buttons = {}
 
-        for i in range(5):
+        for i in range(8):
             self.button_layout = QHBoxLayout()
             label_name = "label %d" % (i + 1)
             self.label_button = QPushButton(label_name)
@@ -48,12 +48,14 @@ class MyWindow(QMainWindow):
                 "color: gray; height: 30px; width: 120px;")
             self.label_button.clicked.connect(
                 partial(self.label_button_clicked, label_name))
+            self.label_button.setFocusPolicy(Qt.NoFocus)
 
             self.go_button = QPushButton("GO")
             self.go_button.setStyleSheet(
                 "color: gray; height: 30px; width: 50px;")
             self.go_button.clicked.connect(
                 partial(self.go_button_clicked, label_name))
+            self.go_button.setFocusPolicy(Qt.NoFocus)
 
             self.button_layout.addWidget(self.label_button)
             self.button_layout.addWidget(self.go_button)
@@ -62,35 +64,37 @@ class MyWindow(QMainWindow):
             self.label_go_buttons = [self.label_button, self.go_button]
             self.buttons[label_name] = self.label_go_buttons
 
-        # slider and play button
+        # slider
+        self.slider_layout = QHBoxLayout()
         self.slider = QSlider(Qt.Horizontal)
-        self.play_button = QPushButton("Play")
-        self.play_button.setStyleSheet("color: lightgray; height: 20px")
-        self.video_status = None
-
-        self.label_scroll_area = QScrollArea()
-        self.label_scroll_area.setWidget(self.label_list)
-        self.label_scroll_area.setWidgetResizable(True)
+        self.slider_layout.addWidget(self.slider)
 
         # Frame label
         self.frame_label = QLabel("")
         self.frame_label.setStyleSheet("color: lightgray;")
+        self.slider_layout.addWidget(self.frame_label)
+
+        # play button
+        self.play_button = QPushButton("Play")
+        self.play_button.setStyleSheet("color: lightgray; height: 20px")
+        self.play_button.setFocusPolicy(Qt.NoFocus)
+        self.video_status = None
 
         # GUI Layout
         grid_box = QGridLayout(self.main_widget)
         grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        grid_box.setColumnStretch(1, 1)   # column 1 width 1
+        #grid_box.setColumnStretch(1, 1)   # column 1 width 1
 
         # column 0
-        grid_box.addWidget(self.canvas, 0, 0, 8, 2)
-        grid_box.addWidget(self.slider, 8, 0)
+        grid_box.addWidget(self.canvas, 0, 0, 8, 1)
+        grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        grid_box.addWidget(self.frame_label, 8, 1)
+        #grid_box.addWidget(self.frame_label, 8, 1)
 
         # column 2
-        grid_box.addWidget(self.label_scroll_area, 0, 2, 5, 1)
-        grid_box.addWidget(self.play_button, 5, 2)
+        grid_box.addLayout(self.label_layout, 0, 1)
+        grid_box.addWidget(self.play_button, 1, 1)
 
         # 창 중앙 정렬
         screen_geometry = QApplication.desktop().availableGeometry()
@@ -273,7 +277,7 @@ class MyWindow(QMainWindow):
         
         self.cl.label_clicked(frame, label)
 
-    def disable_total_label(self):
+    """ def disable_total_label(self):
         # 해당 프레임에 있는 전체 label 버튼 비활성화
         frame_labels = self.dd.frame_label_check(self.dd.frame_number)
         if frame_labels:
@@ -287,7 +291,7 @@ class MyWindow(QMainWindow):
             self.label_layout.update()
 
         # data에서 해당 라벨 이름 정보 제거하기
-        self.dd.delete_label(_label_name)
+        self.dd.delete_label(_label_name) """
 
     def disable_label_button(self, _label_name):
         # 특정 label 버튼 볼드체 풀기 (비활성화)
@@ -414,3 +418,7 @@ class MyWindow(QMainWindow):
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
+
+        if event.key() == Qt.Key_Space:
+            print("space bar 눌림")
+            self.playButtonClicked()

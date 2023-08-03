@@ -199,20 +199,31 @@ class Controller():
         if event.button == 1:
             self.is_drawing = True
             self.select_off_all()
-            self.start = (event.xdata, event.ydata)
-            self.color = self.random_bright_color()
+            if event.inaxes:
+                self.start = (event.xdata, event.ydata)
+                self.color = self.random_bright_color()
+            else:
+                print("Clicked outside the axes!")
 
     def on_draw_mouse_move(self, event):
-        if self.is_drawing:
+        if self.is_drawing and event.inaxes:
+            if self.start is None:
+                self.start = (event.xdata, event.ydata)
+                self.color = self.random_bright_color()
             self.end = (event.xdata, event.ydata)
             self.draw_annotation(self.color)
 
     def on_draw_mouse_release(self, event):
         if event.button == 1:
             self.is_drawing = False
-            self.end = (event.xdata, event.ydata)
-            self.draw_annotation(self.color)
-            self.gui.selector()
+            if event.inaxes:
+                self.end = (event.xdata, event.ydata)
+            else:
+                print("Clicked outside the axes!")
+
+            if self.start and self.end:
+                self.draw_annotation(self.color)
+                self.gui.selector()
 
     def draw_annotation(self, color="red"):
         if self.start and self.end and self.selector_mode == "drawing":
@@ -256,25 +267,16 @@ class Controller():
 
     def delete_label(self, label_name):
         """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
+        # 모든 frame에 label_name 이름을 가진 label의 개수
         count = 0
-        gui = True
         for frame in self.dd.frame_label_dict.values():
             for data in frame.values():
                 if label_name in data:
                     count += 1
-                    """if count > 2:
-                        gui = False
-                        break """
 
-        # GUI에서 모든 프레임에 라벨이 존재하지 않으면 버튼 비활성화
-        if gui:
-            label_exist = False
-            for frame in self.dd.frame_label_dict.keys():
-                if label_name in self.dd.frame_label_check(frame):
-                    label_exist = True
-
-            if not label_exist or count == 1:
-                self.gui.disable_label_button(label_name)
+        # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
+        if count == 1:
+            self.gui.disable_label_button(label_name)
 
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)
