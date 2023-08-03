@@ -234,25 +234,16 @@ class Controller():
 
     def delete_label(self, label_name):
         """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
+        # 모든 frame에 label_name 이름을 가진 label의 개수
         count = 0
-        gui = True
         for frame in self.dd.frame_label_dict.values():
             for data in frame.values():
                 if label_name in data:
                     count += 1
-                    """if count > 2:
-                        gui = False
-                        break """
 
-        # GUI에서 모든 프레임에 라벨이 존재하지 않으면 버튼 비활성화
-        if gui:
-            label_exist = False
-            for frame in self.dd.frame_label_dict.keys():
-                if label_name in self.dd.frame_label_check(frame):
-                    label_exist = True
-
-            if not label_exist or count == 1:
-                self.gui.disable_label_button(label_name)
+        # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
+        if count == 1:
+            self.gui.disable_label_button(label_name)
 
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)

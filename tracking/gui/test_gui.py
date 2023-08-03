@@ -273,7 +273,7 @@ class MyWindow(QMainWindow):
         
         self.cl.label_clicked(frame, label)
 
-    def disable_total_label(self):
+    """ def disable_total_label(self):
         # 해당 프레임에 있는 전체 label 버튼 비활성화
         frame_labels = self.dd.frame_label_check(self.dd.frame_number)
         if frame_labels:
@@ -287,7 +287,7 @@ class MyWindow(QMainWindow):
             self.label_layout.update()
 
         # data에서 해당 라벨 이름 정보 제거하기
-        self.dd.delete_label(_label_name)
+        self.dd.delete_label(_label_name) """
 
     def disable_label_button(self, _label_name):
         # 특정 label 버튼 볼드체 풀기 (비활성화)
