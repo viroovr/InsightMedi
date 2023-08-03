@@ -246,13 +246,23 @@ class Controller():
             for data in frame.values():
                 if label_name in data:
                     count += 1
-                    if count > 2:
+                    """if count > 2:
                         gui = False
-                        break
+                        break """
+
+        # GUI에서 모든 프레임에 라벨이 존재하지 않으면 버튼 비활성화
         if gui:
-            self.gui.disable_label_button(label_name)
-        # data에서 해당 라벨이름 정보 제거하기
+            label_exist = False
+            for frame in self.dd.frame_label_dict.keys():
+                if label_name in self.dd.frame_label_check(frame):
+                    label_exist = True
+
+            if not label_exist or count == 1:
+                self.gui.disable_label_button(label_name)
+
+        # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)
+    
 
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
