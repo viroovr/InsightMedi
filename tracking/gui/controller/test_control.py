@@ -184,20 +184,31 @@ class Controller():
         if event.button == 1:
             self.is_drawing = True
             self.select_off_all()
-            self.start = (event.xdata, event.ydata)
-            self.color = self.random_bright_color()
+            if event.inaxes:
+                self.start = (event.xdata, event.ydata)
+                self.color = self.random_bright_color()
+            else:
+                print("Clicked outside the axes!")
 
     def on_draw_mouse_move(self, event):
-        if self.is_drawing:
+        if self.is_drawing and event.inaxes:
+            if self.start is None:
+                self.start = (event.xdata, event.ydata)
+                self.color = self.random_bright_color()
             self.end = (event.xdata, event.ydata)
             self.draw_annotation(self.color)
 
     def on_draw_mouse_release(self, event):
         if event.button == 1:
             self.is_drawing = False
-            self.end = (event.xdata, event.ydata)
-            self.draw_annotation(self.color)
-            self.gui.selector()
+            if event.inaxes:
+                self.end = (event.xdata, event.ydata)
+            else:
+                print("Clicked outside the axes!")
+
+            if self.start and self.end:
+                self.draw_annotation(self.color)
+                self.gui.selector()
 
     def draw_annotation(self, color="red"):
         if self.start and self.end and self.selector_mode == "drawing":
