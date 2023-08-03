@@ -48,12 +48,14 @@ class MyWindow(QMainWindow):
                 "color: gray; height: 30px; width: 120px;")
             self.label_button.clicked.connect(
                 partial(self.label_button_clicked, label_name))
+            self.label_button.setFocusPolicy(Qt.NoFocus)
 
             self.go_button = QPushButton("GO")
             self.go_button.setStyleSheet(
                 "color: gray; height: 30px; width: 50px;")
             self.go_button.clicked.connect(
                 partial(self.go_button_clicked, label_name))
+            self.go_button.setFocusPolicy(Qt.NoFocus)
 
             self.button_layout.addWidget(self.label_button)
             self.button_layout.addWidget(self.go_button)
@@ -66,6 +68,7 @@ class MyWindow(QMainWindow):
         self.slider = QSlider(Qt.Horizontal)
         self.play_button = QPushButton("Play")
         self.play_button.setStyleSheet("color: lightgray; height: 20px")
+        self.play_button.setFocusPolicy(Qt.NoFocus)
         self.video_status = None
 
         self.label_scroll_area = QScrollArea()
@@ -414,3 +417,7 @@ class MyWindow(QMainWindow):
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
+
+        if event.key() == Qt.Key_Space:
+            print("space bar 눌림")
+            self.playButtonClicked()
