@@ -123,7 +123,6 @@ class Controller():
             # 현재 선택된 artist를 self.artist로 저장시켜 다른 함수에서 접근 가능하게 합니다.
             if 'ctrl' in modifier and len(modifier) == 1:
                 print('ctrl + click')
-                print(self.annotation)
                 self.gui.is_tracking = False
                 if event.artist in self.annotation:
                     # print("annotation에 이미 있을 경우 해제합니다.")
@@ -134,7 +133,7 @@ class Controller():
                     # print("annotation에 없을 경우 annotation에 추가합니다.")
                     self.select_current_edge(event.artist, append=True)
                 
-            elif len(self.annotation) == 1:
+            elif len(self.annotation) <= 1:
                 self.select_current_edge(event.artist)
 
     def selector_on_press(self, event):
@@ -143,7 +142,7 @@ class Controller():
         선택한 라벨의 x, y데이터를 self.press에 저장하는 기능입니다.
         """
         if not self.annotation and self.selector_mode != 'selector':
-            # print("annotation is none")
+            print("annotation is none")
             return
         # if event.inaxes != self.annotation.axes:
         #     # print("not in axes")
@@ -164,7 +163,9 @@ class Controller():
 
     def selector_on_move(self, event):
         """마우스로 드래그하면 self.annotation를 움직일 수 있게 합니다."""
-        if self.start is None or self.selector_mode != 'selector' or not self.is_move:
+        if not self.start or self.selector_mode != 'selector' or not self.is_move:
+            # print(self.start, self.selector_mode, self.is_move)
+            # print("selector_on_move fail")
             return
         
         for i, an in enumerate(self.annotation):
@@ -188,7 +189,6 @@ class Controller():
                 self.modify_label_data(an)
             self.start = None
             self.end = None
-
 
     # draw annotation events
     def on_mouse_press(self, event):
@@ -257,10 +257,11 @@ class Controller():
             return
         if annotation is None:
             annotation = self.annotation
-        annotation.remove()
+        for an in annotation:
+            an.remove()
+            self.delete_label(an.get_label())
         self.canvas.draw()
-        self.delete_label(annotation.get_label())
-
+    
     def delete_label(self, label_name):
         """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
         # 모든 frame에 label_name 이름을 가진 label의 개수
@@ -276,17 +277,16 @@ class Controller():
 
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)
+        
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
-        for an in self.annotation:
-            an.remove()
-        # for patch in self.ax.patches:
-        #     # print(dir(patch))
-        #     if patch.get_label() == _label_name:
-        #         patch.remove()
-        # for patch in self.ax.lines:
-        #     if patch.get_label() == _label_name:
-        #         patch.remove()
+        for patch in self.ax.patches:
+            # print(dir(patch))
+            if patch.get_label() == _label_name:
+                patch.remove()
+        for patch in self.ax.lines:
+            if patch.get_label() == _label_name:
+                patch.remove()
         self.canvas.draw()
 
     def erase_all_annotation(self):
@@ -346,11 +346,15 @@ class Controller():
             _label_name(string): 해당 라벨의 두께를 두껍게 합니다.
         """
         annotation = self.annotation
+        print(annotation)
         self.erase_all_annotation()
         frame_directory = self.dd.frame_label_dict[frame]
         if _label_name is None and annotation is not None:
             self.annotation = annotation
-            _label_name = self.annotation.get_label()
+            for an in self.annotation:
+                if an.get_label() == _label_name:
+                    _label_name = an.get_label()
+                    break
 
         for drawing_type in frame_directory:
             label_directory = frame_directory[drawing_type]
