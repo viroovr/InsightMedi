@@ -276,8 +276,6 @@ class Controller():
 
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)
-    
-
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
         for an in self.annotation:
@@ -400,7 +398,7 @@ class Controller():
         next_label_list = self.dd.frame_label_check(self.dd.frame_number+ 1)
         bbox = []
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
-            label = self.annotation.get_label()
+            label = self.annotation[0].get_label()
             if label not in next_label_list:
                 print("object tracking으로 선택된 label:",label)
                 coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
@@ -426,13 +424,14 @@ class Controller():
             # 새로운 라벨 저장을 위해 필요한 데이터들
             bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
             print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            label = self.annotation.get_label()
+            label = self.annotation[0].get_label()
             color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
 
             # 라벨 그리기 및 저장
-            self.annotation = self.ax.add_patch(
-                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color))
-            self.set_edge_thick(self.annotation, line_width=3)
+            self.annotation.append(self.ax.add_patch(
+                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color)))
+            self.annotation.pop(0)
+            self.set_edge_thick(self.annotation[-1], line_width=3)
             self.canvas.draw()
             self.dd.add_label('rectangle', label, bbox_, color,
                               frame_number=self.dd.frame_number)
