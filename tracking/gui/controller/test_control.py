@@ -134,11 +134,7 @@ class Controller():
                     # print("annotation에 없을 경우 annotation에 추가합니다.")
                     self.select_current_edge(event.artist, append=True)
                 
-            elif len(self.annotation) > 1:
-                print('click')
-                # self.select_current_edge(event.artist)
-            else:
-                print('click')
+            elif len(self.annotation) == 1:
                 self.select_current_edge(event.artist)
 
     def selector_on_press(self, event):
@@ -284,13 +280,15 @@ class Controller():
 
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
-        for patch in self.ax.patches:
-            # print(dir(patch))
-            if patch.get_label() == _label_name:
-                patch.remove()
-        for patch in self.ax.lines:
-            if patch.get_label() == _label_name:
-                patch.remove()
+        for an in self.annotation:
+            an.remove()
+        # for patch in self.ax.patches:
+        #     # print(dir(patch))
+        #     if patch.get_label() == _label_name:
+        #         patch.remove()
+        # for patch in self.ax.lines:
+        #     if patch.get_label() == _label_name:
+        #         patch.remove()
         self.canvas.draw()
 
     def erase_all_annotation(self):
