@@ -35,6 +35,7 @@ class Controller():
         self.is_move = False
         
         self.press = None
+        self.tracker = {}
 
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
@@ -400,46 +401,48 @@ class Controller():
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
         next_label_list = self.dd.frame_label_check(self.dd.frame_number+ 1)
-        bbox = []
+        bbox = {}
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
-            for i in range(len(self.annotation)):
-                label = self.annotation[i].get_label()
+            for annotation in self.annotation:
+                label = annotation.get_label()
                 if label not in next_label_list:
-                    print(f"object tracking으로 선택된 {i}번 째 label: {label}")
                     coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
                     x = coord_list[0][0]
                     y = coord_list[0][1]
                     w = coord_list[1]
                     h = coord_list[2]
                     label_bbox = [int(x), int(y), int(w), int(h)]
-                    bbox.append(label_bbox)
+                    bbox[label] = label_bbox
                     print(f"{label}의 bbox:", label_bbox)
             print("현재 프레임의 bbox들 좌표:", bbox)
         return bbox
 
     
     def object_tracking(self, frame, bbox, init=False):
-        if init:
-            print("tracker 초기화")
-            self.tracker = cv2.TrackerCSRT_create()
-            ok = self.tracker.init(frame, bbox)
-    
-        ok, bbox = self.tracker.update(frame)
-        if ok:
-            print("obect tracking한 bbox", bbox)
+        for label, label_bbox in bbox.items():
+            if init:
+                print(f"{label}의 tracker 초기화")
+                self.tracker[label] = cv2.TrackerCSRT_create()
+                ok = self.tracker[label].init(frame, label_bbox)
+        
+            ok, new_bbox = self.tracker[label].update(frame)
 
-            # 새로운 라벨 저장을 위해 필요한 데이터들
-            bbox_ = ((bbox[0], bbox[1]), bbox[2], bbox[3])
-            print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            label = self.annotation[0].get_label()
-            color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
+            if ok:
+                #print(f"obect tracking한 {label}의 bbox", new_bbox)
 
-            # 라벨 그리기 및 저장
-            self.annotation.append(self.ax.add_patch(
-                    Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], fill=False, picker=True, label=label, edgecolor=color)))
-            self.annotation.pop(0)
-            self.set_edge_thick(self.annotation[-1], line_width=3)
-            self.canvas.draw()
-            self.dd.add_label('rectangle', label, bbox_, color,
-                              frame_number=self.dd.frame_number)
-            #print(self.dd.frame_label_dict)
+                # 새로운 라벨 저장을 위해 필요한 데이터들
+                bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
+                print(self.dd.frame_label_check(self.dd.frame_number - 1))
+                #label = self.annotation[0].get_label()
+                color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
+
+                # 라벨 그리기 및 저장
+                self.annotation.pop(0)
+                new_annotation = self.ax.add_patch(
+                        Rectangle((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3], fill=False, picker=True, label=label, edgecolor=color))
+                self.select_current_edge(new_annotation, append = True)
+                #print("현재 선택된 label들:", self.annotation)
+                self.canvas.draw()
+                self.dd.add_label('rectangle', label, bbox_, color,
+                                frame_number=self.dd.frame_number)
+                #print(self.dd.frame_label_dict)

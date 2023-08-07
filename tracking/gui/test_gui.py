@@ -401,6 +401,7 @@ class MyWindow(QMainWindow):
                 self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
                 if not self.is_tracking:
                     # object tracking 한 결과 나온 라벨링 그리기
+                    self.cl.tracker = {}
                     self.cl.object_tracking(frame, bbox, init=True)
                     self.is_tracking = True
                 else:
