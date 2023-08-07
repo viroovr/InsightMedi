@@ -402,16 +402,19 @@ class Controller():
         next_label_list = self.dd.frame_label_check(self.dd.frame_number+ 1)
         bbox = []
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
-            label = self.annotation[0].get_label()
-            if label not in next_label_list:
-                print("object tracking으로 선택된 label:",label)
-                coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
-                x = coord_list[0][0]
-                y = coord_list[0][1]
-                w = coord_list[1]
-                h = coord_list[2]
-                bbox = [int(x), int(y), int(w), int(h)]
-                print("bbox:", bbox)
+            for i in range(len(self.annotation)):
+                label = self.annotation[i].get_label()
+                if label not in next_label_list:
+                    print(f"object tracking으로 선택된 {i}번 째 label: {label}")
+                    coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
+                    x = coord_list[0][0]
+                    y = coord_list[0][1]
+                    w = coord_list[1]
+                    h = coord_list[2]
+                    label_bbox = [int(x), int(y), int(w), int(h)]
+                    bbox.append(label_bbox)
+                    print(f"{label}의 bbox:", label_bbox)
+            print("현재 프레임의 bbox들 좌표:", bbox)
         return bbox
 
     
