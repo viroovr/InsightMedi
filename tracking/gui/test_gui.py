@@ -39,7 +39,6 @@ class MyWindow(QMainWindow):
         self.label_layout = QVBoxLayout()
         # self.label_list.setLayout(self.label_layout)
         self.buttons = {}
-
         for i in range(8):
             self.button_layout = QHBoxLayout()
             label_name = "label %d" % (i + 1)
@@ -145,8 +144,6 @@ class MyWindow(QMainWindow):
         delete_all_action.triggered.connect(self.delete_all)
         toolbar.addAction(delete_all_action)
 
-        self.is_tracking = False
-
     def closeEvent(self, event):
         # mainWindow종료시 할당된 메모리 해제하기
         self.release_resources()
@@ -248,7 +245,7 @@ class MyWindow(QMainWindow):
                 self.dd.delete_label(label, frame)
                 self.cl.erase_annotation(label)
         
-        self.is_tracking = False
+        self.cl.is_tracking = False
 
         if self.cl.annotation_mode == "line":
             self.draw_straight_line(label)
@@ -344,12 +341,12 @@ class MyWindow(QMainWindow):
 
     def updateFrame(self):
         # frame update
-        self.ret, self.frame = self.dd.video_player.read()
+        self.ret, self.dd.image = self.dd.video_player.read()
         if self.ret:
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
             self.set_frame_label()  # 현재 frame 상태 화면에 update
-            rgb_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(self.dd.image, cv2.COLOR_BGR2RGB)
             self.cl.img_show(rgb_frame, clear=True)
 
             # frame에 라벨이 존재하면 라벨을 보여줍니다.
@@ -391,26 +388,7 @@ class MyWindow(QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
             print("t 키 눌림")
-            bbox = self.cl.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
-            if bbox:
-                try:
-                    frame = self.frame
-                except AttributeError:
-                    frame = self.dd.frame
-                
-                self.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-                if not self.is_tracking:
-                    # object tracking 한 결과 나온 라벨링 그리기
-                    self.cl.tracker = {}
-                    self.cl.object_tracking(frame, bbox, init=True)
-                    self.is_tracking = True
-                else:
-                    # object tracking 한 결과 나온 라벨링 그리기
-                    self.cl.object_tracking(frame, bbox)
-
-        elif event.key() == Qt.Key_R:
-            print("r 키 눌림")
-            self.is_tracking = False
+            self.cl.init_object_tracking()
 
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")

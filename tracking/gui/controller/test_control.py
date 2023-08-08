@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+import sys
 
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
@@ -33,9 +34,10 @@ class Controller():
         self.end = None
         self.is_drawing = False
         self.is_move = False
-        
+
         self.press = None
         self.tracker = {}
+        self.is_tracking = False
 
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
@@ -70,6 +72,7 @@ class Controller():
         self.set_mpl_disconnect()
         self.start = None
         self.end = None
+        self.is_move = False
         if mode == "delete":
             self.selector_mode = 'selector'
             self.annotation_mode = mode
@@ -132,10 +135,10 @@ class Controller():
                     self.canvas.draw()
                 else:
                     # print("annotation에 없을 경우 annotation에 추가합니다.")
-                    self.select_current_edge(event.artist, append=True)
-                
+                    self.select_current_edge(event.artist)
+
             elif len(self.annotation) <= 1:
-                self.select_current_edge(event.artist)
+                self.select_current_edge(event.artist, isOff=True)
 
     def selector_on_press(self, event):
         """
@@ -168,14 +171,14 @@ class Controller():
             # print(self.start, self.selector_mode, self.is_move)
             # print("selector_on_move fail")
             return
-        
+
         for i, an in enumerate(self.annotation):
             # print(self.start[i])
             (x0, y0), (xpress, ypress) = self.start[i]
             # print(x0, y0, xpress, ypress)
             dx = event.xdata - xpress
             dy = event.ydata - ypress
-            
+
             an.set_x(x0 + dx)
             an.set_y(y0 + dy)
 
@@ -235,42 +238,41 @@ class Controller():
                 height = abs(self.start[1] - self.end[1])
                 x = min(self.start[0], self.end[0])
                 y = min(self.start[1], self.end[1])
-                self.current_annotation =  self.ax.add_patch(
+                self.current_annotation = self.ax.add_patch(
                     Rectangle((x, y), width, height, fill=False, picker=True, label=label_class, edgecolor=color))
                 if self.is_drawing is False:
                     self.annotation.append(self.current_annotation)
                     self.dd.add_label("rectangle", label_class,
                                       ((x, y), width, height), color)
-                    
-            #self.artist = self.annotation
+
+            # self.artist = self.annotation
             self.set_edge_thick(self.current_annotation, line_width=3)
             self.canvas.draw()
 
     # delete or remove functions
-    def remove_annotation(self, annotation=None):
-        """ annotation이 주어지면 annotation을 지우고 
-            주어지지 않는 경우, self.annotation을 지웁니다.
-
-        Args:
-            annotation (Line2D or Rectangle): 선이나 도형 객체. Defaults to None.
+    def remove_annotation(self):
+        """
+        self.annotation을 지웁니다.
         """
         if self.annotation is None:
             return
-        if annotation is None:
-            annotation = self.annotation
-        for an in annotation:
+        for an in self.annotation:
             an.remove()
             self.delete_label(an.get_label())
+        self.annotation = []
         self.canvas.draw()
-    
+
     def delete_label(self, label_name):
-        """ contorls > Viewer_GUI > dcm_data순으로 먼저 버튼을 비활성화하고 데이터 지우는 순차적 구조입니다."""
+        """ contorls -> Viewer_GUI -> dcm_data순으로 버튼을 비활성화하고 데이터를 지웁니다."""
         # 모든 frame에 label_name 이름을 가진 label의 개수
         count = 0
         for frame in self.dd.frame_label_dict.values():
             for data in frame.values():
                 if label_name in data:
                     count += 1
+            # 모든 for문을 돌지 않고 2개 이상일 때 break 합니다.
+            if count > 1:
+                break
 
         # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
         if count == 1:
@@ -278,9 +280,13 @@ class Controller():
 
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
         self.dd.delete_label(label_name)
-        
+
     def erase_annotation(self, _label_name):
-        """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다."""
+        """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다.
+
+        Args:
+            _label_name(string): 주어진 라벨이름의 annotation을 제거합니다.
+        """
         for patch in self.ax.patches:
             # print(dir(patch))
             if patch.get_label() == _label_name:
@@ -312,14 +318,15 @@ class Controller():
         self.dd.modify_label_data(ar.get_label(), ret_points, color)
 
     # select functions
-    def select_current_edge(self, annotation, append=False):
+    def select_current_edge(self, annotation, isOff=False):
         """
         현재 self.ax에서 선택한 annotation만 두께를 강조합니다.
 
         Args:
             annotataion(annotation): 선 또는 도형 객체입니다.
+            isOff(bool): True일 때, 다른 모든 라벨들의 강조를 끕니다.
         """
-        if not append:
+        if isOff:
             # ctrl click이 아닐 시 다른 강조들을 해제합니다.
             print("모두 해제")
             self.select_off_all()
@@ -339,24 +346,20 @@ class Controller():
         self.current_annotation = None
         self.annotation = []
 
-    def label_clicked(self, frame, _label_name=None):
+    def label_clicked(self, frame, _label_name=[]):
         """
         go버튼 클릭 시 모든 annotation을 지우고 해당 frame으로 이동한 뒤 캔버스에 plot을 그려줍니다.
 
         Args:
-            _label_name(string): 해당 라벨의 두께를 두껍게 합니다.
+            _label_name(string or empty list): 해당 라벨의 두께를 두껍게 합니다.
+                                        empty list일 경우, self.annotation 라벨들의 강조를 유지합니다.
         """
-        annotation = self.annotation
-        print(annotation)
+        if not _label_name and self.annotation:
+            _label_name = [an.get_label() for an in self.annotation]
+        # print(f"{sys._getframe(0).f_code.co_name}: {_label_name}")
         self.erase_all_annotation()
-        frame_directory = self.dd.frame_label_dict[frame]
-        if _label_name is None and annotation is not None:
-            self.annotation = annotation
-            for an in self.annotation:
-                if an.get_label() == _label_name:
-                    _label_name = an.get_label()
-                    break
 
+        frame_directory = self.dd.frame_label_dict[frame]
         for drawing_type in frame_directory:
             label_directory = frame_directory[drawing_type]
             for label in label_directory:
@@ -369,8 +372,9 @@ class Controller():
                     annotation = self.ax.add_patch(Rectangle(coords[0], coords[1], coords[2], fill=False,
                                                              picker=True, label=label, edgecolor=color))
 
-                if _label_name == label:
-                    self.set_edge_thick(annotation, line_width=3)
+                if label in _label_name:
+                    # print(f"label : {label}, _label_name : {_label_name}")
+                    self.select_current_edge(annotation)
 
         self.canvas.draw()
 
@@ -392,6 +396,21 @@ class Controller():
         self.ax.axis("off")
         self.canvas.draw()
 
+    #object tracking
+    def init_object_tracking(self):
+        bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
+        frame = self.dd.image
+        if bbox:
+            self.gui.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+            if not self.is_tracking:
+                # object tracking 한 결과 나온 라벨링 그리기
+                self.tracker = {}
+                self.object_tracking(frame, bbox, init=True)
+                self.is_tracking = True
+            else:
+                # object tracking 한 결과 나온 라벨링 그리기
+                self.object_tracking(frame, bbox)
+
     def check_bbox(self):
         """
         object tracking이 가능한 상태인 지 확인하고, bbox를 반환합니다.
@@ -400,7 +419,7 @@ class Controller():
             bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
         label_list = self.dd.frame_label_check(self.dd.frame_number)
-        next_label_list = self.dd.frame_label_check(self.dd.frame_number+ 1)
+        next_label_list = self.dd.frame_label_check(self.dd.frame_number + 1)
         bbox = {}
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
             for annotation in self.annotation:
@@ -417,32 +436,39 @@ class Controller():
             print("현재 프레임의 bbox들 좌표:", bbox)
         return bbox
 
-    
     def object_tracking(self, frame, bbox, init=False):
+        """ 주어진 frame이미지에 tracking한 물체에 bbox를 그리고 정보를 저장합니다.
+
+        Args:
+            frame (ndarray): frame이미지
+            bbox (List): bounding box의 좌표 리스트
+            init (bool, optional): True일때, tracker를 생성합니다. Defaults to False.
+        """
         for label, label_bbox in bbox.items():
             if init:
                 print(f"{label}의 tracker 초기화")
                 self.tracker[label] = cv2.TrackerCSRT_create()
                 ok = self.tracker[label].init(frame, label_bbox)
-        
+
             ok, new_bbox = self.tracker[label].update(frame)
 
             if ok:
-                #print(f"obect tracking한 {label}의 bbox", new_bbox)
+                # print(f"obect tracking한 {label}의 bbox", new_bbox)
 
                 # 새로운 라벨 저장을 위해 필요한 데이터들
                 bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
                 print(self.dd.frame_label_check(self.dd.frame_number - 1))
-                #label = self.annotation[0].get_label()
-                color = self.dd.frame_label_dict[self.dd.frame_number - 1]['rectangle'][label]['color']
+                # label = self.annotation[0].get_label()
+                color = self.dd.frame_label_dict[self.dd.frame_number -
+                                                 1]['rectangle'][label]['color']
 
                 # 라벨 그리기 및 저장
                 self.annotation.pop(0)
                 new_annotation = self.ax.add_patch(
-                        Rectangle((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3], fill=False, picker=True, label=label, edgecolor=color))
-                self.select_current_edge(new_annotation, append = True)
-                #print("현재 선택된 label들:", self.annotation)
-                self.canvas.draw()
+                    Rectangle((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3],
+                              fill=False, picker=True, label=label, edgecolor=color))
+                self.select_current_edge(new_annotation)
+                # print("현재 선택된 label들:", self.annotation)
                 self.dd.add_label('rectangle', label, bbox_, color,
-                                frame_number=self.dd.frame_number)
-                #print(self.dd.frame_label_dict)
+                                  frame_number=self.dd.frame_number)
+                # print(self.dd.frame_label_dict)

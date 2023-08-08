@@ -1,4 +1,5 @@
 import os
+from typing import List
 import matplotlib
 import cv2
 import json
@@ -104,8 +105,13 @@ class DcmData():
             print(f"file '{file_name}' not found")
 
     def delete_label(self, _label_name, frame=None):
-        print(self.frame_label_dict)
-        print(f"frame : {frame}")
+        """주어진 frame에서 해당하는 라벨이름을 가진 라벨을 
+        frame_dict에서 제거합니다.
+
+        Args:
+            _label_name (string): 라벨 명
+            frame (int): frame값. Defaults to None.
+        """
 
         if frame is not None:
             frame_number = int(frame)
@@ -120,6 +126,13 @@ class DcmData():
         print(f"라벨 정보 제거 후: {self.frame_label_dict}")
 
     def modify_label_data(self, _label_name, _coor, _color):
+        """주어진 라벨 이름의 좌표값과 컬러값을 변경합니다.
+
+        Args:
+            _label_name (string): 라벨 이름
+            _coor (tuple): 객체의 좌표 정보
+            _color (string or tuple): 컬러 값 (#ffffff)
+        """
         frame_dict = self.frame_label_dict[self.frame_number]
         for label_dict in frame_dict.values():
             if _label_name in label_dict:
@@ -127,11 +140,19 @@ class DcmData():
                 label_dict[_label_name]['color'] = _color
                 break
 
-    def frame_label_check(self, frame):
+    def frame_label_check(self, frame) -> List:
+        """
+        frame에 존재하는 직사각형 라벨이름 리스트를 반환합니다.
+
+        Args:
+            frame(int): frame 번호
+
+        Returns:
+            label_list(list): 라벨명 리스트
+        """
         try:
-            frame_dict = self.frame_label_dict[frame]
-            label_list = list(frame_dict['rectangle'].keys())
-            #bn  print("label list 확인:", label_list)
+            label_list = list(self.frame_label_dict[frame]['rectangle'].keys())
+            # bn  print("label list 확인:", label_list)
             """ for _, label_dict in frame_dict.items():
                 for label in label_dict:
                     label_list.append(label) """
