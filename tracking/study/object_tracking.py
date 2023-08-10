@@ -12,6 +12,7 @@ def similarity_score(mode, previous_roi, current_roi):
         # 히스토그램 정규화
         hist_previous = hist_previous / hist_previous.sum()
         hist_current = hist_current / hist_current.sum()
+        
 
         # 히스토 그램 유사도 비교 (Bhattacharyya 거리 사용)
         similarity = cv2.compareHist(hist_previous, hist_current, cv2.HISTCMP_BHATTACHARYYA)
