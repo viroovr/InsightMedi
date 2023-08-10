@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QTimer
-
+import copy
 import cv2
 import matplotlib.pyplot as plt
 
@@ -82,14 +82,14 @@ class MyWindow(QMainWindow):
         # GUI Layout
         grid_box = QGridLayout(self.main_widget)
         grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        #grid_box.setColumnStretch(1, 1)   # column 1 width 1
+        # grid_box.setColumnStretch(1, 1)   # column 1 width 1
 
         # column 0
         grid_box.addWidget(self.canvas, 0, 0, 8, 1)
         grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        #grid_box.addWidget(self.frame_label, 8, 1)
+        # grid_box.addWidget(self.frame_label, 8, 1)
 
         # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
@@ -244,7 +244,7 @@ class MyWindow(QMainWindow):
             if frame_labels and label in frame_labels:
                 self.dd.delete_label(label, frame)
                 self.cl.erase_annotation(label)
-        
+
         self.cl.is_tracking = False
 
         if self.cl.annotation_mode == "line":
@@ -271,7 +271,7 @@ class MyWindow(QMainWindow):
         if self.dd.file_mode == "mp4":
             self.dd.frame_number = frame
             self.slider.setValue(frame)
-        
+
         self.cl.label_clicked(frame, label)
 
     """ def disable_total_label(self):
@@ -338,16 +338,17 @@ class MyWindow(QMainWindow):
             self.timer.stop()
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
-
+    
     def updateFrame(self):
         # frame update
-        self.ret, self.dd.image = self.dd.video_player.read()
-        if self.ret:
+        ret, frame = self.dd.video_player.read()
+        if ret:
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
             self.set_frame_label()  # 현재 frame 상태 화면에 update
-            rgb_frame = cv2.cvtColor(self.dd.image, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.cl.img_show(rgb_frame, clear=True)
+            self.dd.image = rgb_frame
 
             # frame에 라벨이 존재하면 라벨을 보여줍니다.
             if self.dd.frame_number in self.dd.frame_label_dict:
@@ -381,7 +382,7 @@ class MyWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
-            #self.disable_total_label()    # label 버튼 비활성화
+            # self.disable_total_label()    # label 버튼 비활성화
             for label_name in self.dd.frame_label_check(self.dd.frame_number):
                 self.cl.delete_label(label_name)
 
@@ -393,7 +394,7 @@ class MyWindow(QMainWindow):
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
             self.cl.remove_annotation()
-        
+
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
