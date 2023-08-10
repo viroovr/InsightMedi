@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import sys
-
+import copy
+from time import sleep
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
 from gui.data.test_data import DcmData
@@ -36,7 +37,7 @@ class Controller():
         self.is_move = False
 
         self.press = None
-        
+
         self.tracker = {}
         self.is_tracking = False
 
@@ -377,7 +378,7 @@ class Controller():
                     # print(f"label : {label}, _label_name : {_label_name}")
                     self.select_current_edge(annotation)
         # print(f"{sys._getframe(0).f_code.co_name}: {self.annotation}")
-        
+
         self.canvas.draw()
 
     def img_show(self, img, cmap='viridis', init=False, clear=False):
@@ -398,20 +399,23 @@ class Controller():
         self.ax.axis("off")
         self.canvas.draw()
 
-    #object tracking
+    # object tracking
     def init_object_tracking(self):
-        
+
         bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
-        frame = self.dd.image
+        frame = copy.deepcopy(self.dd.image)
         if bbox:
-            self.gui.slider.setValue(self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+            # print(np.array_equal(self.dd.image, frame))
+            self.gui.slider.setValue(
+                self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+            # print(np.array_equal(self.dd.image, frame))
             if not self.is_tracking:
                 # object tracking 한 결과 나온 라벨링 그리기
-                self.object_tracking(frame, bbox, init=True)
+                self.object_tracking(frame, self.dd.image, bbox, init=True)
                 self.is_tracking = True
             else:
                 # object tracking 한 결과 나온 라벨링 그리기
-                self.object_tracking(frame, bbox)
+                self.object_tracking(frame, self.dd.image, bbox)
 
     def check_bbox(self):
         """
@@ -433,12 +437,13 @@ class Controller():
                     y = coord_list[0][1]
                     w = coord_list[1]
                     h = coord_list[2]
-                    bbox.append((label, [int(x), int(y), int(w), int(h)], color))
+                    bbox.append(
+                        (label, [int(x), int(y), int(w), int(h)], color))
                     # print(f"{label}의 bbox:", bbox)
             print("현재 프레임의 bbox들 좌표:", bbox)
         return bbox
 
-    def object_tracking(self, frame, bbox, init=False):
+    def object_tracking(self, oldframe, newframe, bbox, init=False):
         """ 주어진 frame이미지에 tracking한 물체에 bbox를 그리고 정보를 저장합니다.
 
         Args:
@@ -446,44 +451,98 @@ class Controller():
             bbox (List): bounding box의 좌표 리스트
             init (bool, optional): True일때, tracker를 생성합니다. Defaults to False.
         """
-        
+
         if init:
             print(f"multitracker 초기화")
             self.multitracker = cv2.legacy.MultiTracker_create()
             # ok = self.tracker[label].init(frame, label_bbox)
             for label_bbox in bbox:
                 tracker = cv2.legacy.TrackerCSRT_create()
-                self.multitracker.add(tracker, frame, label_bbox[1])
+                self.multitracker.add(tracker, newframe, label_bbox[1])
 
-            
-        ok, new_bboxes = self.multitracker.update(frame)
+        ok, new_bboxes = self.multitracker.update(newframe)
 
         if ok:
-            print(f"기존 bbox {bbox}" )
-            print(f"object tracking한 bbox {new_bboxes}")
-            print(f"선택된 annotation {self.annotation}")
+            # print(f"기존 bbox {bbox}" )
+            # print(f"object tracking한 bbox {new_bboxes}")
+            # print(f"선택된 annotation {self.annotation}")
             for i, new_bbox in enumerate(new_bboxes):
-            # 새로운 라벨 저장을 위해 필요한 데이터들
-            # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
-                bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(new_bbox[2]), int(new_bbox[3]))
-            # print(self.dd.frame_label_check(self.dd.frame_number - 1))
-            # label = self.annotation[0].get_label()
-                color = bbox[i][2]
-                label = bbox[i][0]
-                print(*bbox_, color, label)
-            # 라벨 그리기 및 저장
-                if self.annotation:
-                    self.annotation.pop(0)
-                new_annotation = self.ax.add_patch(
-                    Rectangle(*bbox_,
-                            fill=False, picker=True, label=label, edgecolor=color))
-                self.select_current_edge(new_annotation)
-                # print("현재 선택된 label들:", self.annotation)
-                self.dd.add_label('rectangle', label, bbox_, color,
-                                frame_number=self.dd.frame_number)
-                # print(self.dd.frame_label_dict)
+                # 새로운 라벨 저장을 위해 필요한 데이터들
+                # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
+                bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
+                    new_bbox[2]), int(new_bbox[3]))
+                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.22):
+                    # print(self.dd.frame_label_check(self.dd.frame_number - 1))
+                    # label = self.annotation[0].get_label()
+                    color = bbox[i][2]
+                    label = bbox[i][0]
+                    print(*bbox_, color, label)
+                    # 라벨 그리기 및 저장
+                    if self.annotation:
+                        self.annotation.pop(0)
+                    new_annotation = self.ax.add_patch(
+                        Rectangle(*bbox_,
+                                  fill=False, picker=True, label=label, edgecolor=color))
+                    self.select_current_edge(new_annotation)
+                    # print("현재 선택된 label들:", self.annotation)
+                    self.dd.add_label('rectangle', label, bbox_, color,
+                                      frame_number=self.dd.frame_number)
+                    # print(self.dd.frame_label_dict)
+                else:
+                    print("유사도 떨어짐 감지")
         else:
             print("object tracking failed")
-    
-    def label_move(self):
-        pass
+
+    def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
+        print(f"old : {oldbox}, new: {newbox}")
+        # print(np.array_equal(oldframe, newframe))
+        roi = oldframe[oldbox[1]:oldbox[1] +
+                       oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
+        roi2 = newframe[newbox[0][1]:newbox[0][1] +
+                        newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
+        # fig, ax = plt.subplots(1, 3)
+        # ax[0].imshow(roi)
+        # ax[0].set_title("Old Frame ROI")
+        # ax[1].imshow(roi)
+        # ax[1].set_title("New Frame ROI")
+
+        # # roi = cv2.resize(roi, (300, 300))
+        # # roi2 = cv2.resize(roi2, (300, 300))
+        # # print(np.array_equal(roi, roi2))
+
+        # # Initiate SIFT detector
+        # orb = cv2.ORB_create()
+
+        # # find the keypoints and descriptors with SIFT
+        # kp1, des1 = orb.detectAndCompute(roi, None)
+        # kp2, des2 = orb.detectAndCompute(roi, None)
+
+        # # create BFMatcher object
+        # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+        # # Match descriptors.
+        # try:
+        #     matches = bf.match(des1, des2)
+
+        #     # matches = sorted(matches, key=lambda x: x.distance)
+        #     # good_matches = matches[:80]
+        #     print('# of kp1:', len(kp1))
+        #     print('# of kp2:', len(kp2))
+        #     print('# of matches:', len(matches))
+        #     # print('# of good_matches:', len(good_matches))
+        #     similarity = len(matches) / max(len(kp1), len(kp2))
+        #     img3 = cv2.drawMatches(roi, kp1, roi, kp2,
+        #                            matches[:10], None, flags=2)
+
+        #     ax[2].imshow(img3)
+        #     ax[2].set_title("compare")
+        #     plt.show()
+
+        #     print(f"similarity: {similarity}")
+        #     if similarity >= similarity_threshold:
+        #         return True
+        #     else:
+        #         return False
+        # except:
+        #     print("No similarity")
+        #     return False

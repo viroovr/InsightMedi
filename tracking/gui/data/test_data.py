@@ -18,7 +18,6 @@ class DcmData():
 
         self.ds = None
         self.image = None
-
         self.video_player = None
         self.frame_number = 0
         self.total_frame = 0
