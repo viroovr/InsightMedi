@@ -18,7 +18,7 @@ type_of_trackers = ['BOOSTING', 'MIL', 'KCF','TLD', 'MEDIANFLOW', 'GOTURN',
 desired_tracker = 'CSRT'
  
 # Generate a MultiTracker object    
-multi_tracker = cv2.MultiTracker_create()
+multi_tracker = cv2.legacy.MultiTracker_create()
  
 # Set bounding box drawing parameters
 from_center = False # Draw bounding box from upper left

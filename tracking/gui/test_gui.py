@@ -191,7 +191,7 @@ class MyWindow(QMainWindow):
                 self.timer = QTimer()
                 self.set_frame_label()
 
-                self.cl.img_show(dd.image, cmap=plt.cm.gray, init=True)
+                self.cl.img_show(dd.image, init=True)
                 if self.dd.frame_label_check(self.dd.frame_number):
                     self.cl.label_clicked(self.dd.frame_number)
 
