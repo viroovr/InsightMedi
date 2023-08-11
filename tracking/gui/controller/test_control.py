@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import sys
+import threading
+
 import copy
 from time import sleep
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
@@ -40,7 +42,7 @@ class Controller():
 
         self.tracker = {}
         self.is_tracking = False
-
+        self.toggle = False
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
         """다음순서로 args받아야 합니다. button_press_event, motion_notify_event, button_release_event"""
@@ -357,7 +359,8 @@ class Controller():
                                         empty list일 경우, self.annotation 라벨들의 강조를 유지합니다.
         """
         if not _label_name and self.annotation:
-            _label_name = (an.get_label() for an in self.annotation)
+            _label_name = [an.get_label() for an in self.annotation]
+            print(f"{sys._getframe(0).f_code.co_name}: _label_name : {_label_name}")
         self.erase_all_annotation()
 
         frame_directory = self.dd.frame_label_dict[frame]
@@ -400,22 +403,36 @@ class Controller():
         self.canvas.draw()
 
     # object tracking
+    def toggle_object_tracking(self):
+        if not self.toggle:
+            self.thread = threading.Thread(target=self.init_object_tracking)
+            self.toggle = True
+            self.thread.start()
+        else:
+            self.toggle = False
+            self.thread.join()
+    
     def init_object_tracking(self):
-
-        bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
-        frame = copy.deepcopy(self.dd.image)
-        if bbox:
-            # print(np.array_equal(self.dd.image, frame))
-            self.gui.slider.setValue(
-                self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-            # print(np.array_equal(self.dd.image, frame))
-            if not self.is_tracking:
-                # object tracking 한 결과 나온 라벨링 그리기
-                self.object_tracking(frame, self.dd.image, bbox, init=True)
-                self.is_tracking = True
+        while self.toggle:
+            # sleep(0.1)
+            bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
+            frame = copy.deepcopy(self.dd.image)
+            if bbox:
+                # print(np.array_equal(self.dd.image, frame))
+                self.gui.slider.setValue(
+                    self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+                # print(np.array_equal(self.dd.image, frame))
+                if not self.is_tracking:
+                    # object tracking 한 결과 나온 라벨링 그리기
+                    self.object_tracking(frame, self.dd.image, bbox, init=True)
+                    self.is_tracking = True
+                else:
+                    # object tracking 한 결과 나온 라벨링 그리기
+                    self.object_tracking(frame, self.dd.image, bbox)
             else:
-                # object tracking 한 결과 나온 라벨링 그리기
-                self.object_tracking(frame, self.dd.image, bbox)
+                print("No bbox")
+                self.toggle = False
+            
 
     def check_bbox(self):
         """
@@ -494,12 +511,13 @@ class Controller():
             print("object tracking failed")
 
     def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
-        print(f"old : {oldbox}, new: {newbox}")
-        # print(np.array_equal(oldframe, newframe))
-        roi = oldframe[oldbox[1]:oldbox[1] +
-                       oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
-        roi2 = newframe[newbox[0][1]:newbox[0][1] +
-                        newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
+        # print(f"old : {oldbox}, new: {newbox}")
+        # # print(np.array_equal(oldframe, newframe))
+        # roi = oldframe[oldbox[1]:oldbox[1] +
+        #                oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
+        # roi2 = newframe[newbox[0][1]:newbox[0][1] +
+        #                 newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
+        return True
         # fig, ax = plt.subplots(1, 3)
         # ax[0].imshow(roi)
         # ax[0].set_title("Old Frame ROI")
