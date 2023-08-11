@@ -389,7 +389,7 @@ class MyWindow(QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
             print("t 키 눌림")
-            self.cl.init_object_tracking()
+            self.cl.toggle_object_tracking()
 
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
