@@ -101,6 +101,8 @@ class MyWindow(QMainWindow):
         center_y = (screen_geometry.height() - self.height()) // 2
         self.move(center_x, center_y)
 
+        self.is_tracking = False
+
         '''
         Toolbar
         '''
@@ -341,6 +343,7 @@ class MyWindow(QMainWindow):
     
     def updateFrame(self):
         # frame update
+        prev_frame = copy.deepcopy(self.dd.image)
         ret, frame = self.dd.video_player.read()
         if ret:
             self.dd.frame_number = int(
@@ -349,8 +352,9 @@ class MyWindow(QMainWindow):
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.cl.img_show(rgb_frame, clear=True)
             self.dd.image = rgb_frame
-
             # frame에 라벨이 존재하면 라벨을 보여줍니다.
+            if self.is_tracking:
+                self.cl.init_object_tracking(prev_frame, rgb_frame)
             if self.dd.frame_number in self.dd.frame_label_dict:
                 self.cl.label_clicked(self.dd.frame_number)
 
@@ -389,7 +393,12 @@ class MyWindow(QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
             print("t 키 눌림")
-            self.cl.toggle_object_tracking()
+            if not self.is_tracking:
+                self.is_tracking = True
+                self.playButtonClicked()
+            else:
+                self.is_tracking = False
+                self.playButtonClicked()
 
         elif event.key() == Qt.Key_Delete:
             print("delete 키 눌림")

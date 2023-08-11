@@ -410,36 +410,32 @@ class Controller():
         self.canvas.draw()
 
     # object tracking
-    def toggle_object_tracking(self):
-        if not self.toggle:
-            self.toggle = True
-            self.thread = threading.Thread(target=self.init_object_tracking)
-            # self.init_object_tracking()
-            self.thread.start()
-        else:
-            self.toggle = False
-            # self.thread.join()
+    # def toggle_object_tracking(self):
+    #     if not self.toggle:
+    #         self.toggle = True
+    #         self.thread = threading.Thread(target=self.init_object_tracking)
+    #         # self.init_object_tracking()
+    #         self.thread.start()
+    #     else:
+    #         self.toggle = False
+    #         # self.thread.join()
     
-    def init_object_tracking(self):
-        while self.toggle:
-            sleep(0.5)
-            bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
-            frame = copy.deepcopy(self.dd.image)
-            if bbox:
-                # print(np.array_equal(self.dd.image, frame))
-                self.gui.slider.setValue(
-                    self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-                # print(np.array_equal(self.dd.image, frame))
-                if not self.is_tracking:
-                    # object tracking 한 결과 나온 라벨링 그리기
-                    self.object_tracking(frame, self.dd.image, bbox, init=True)
-                    self.is_tracking = True
-                else:
-                    # object tracking 한 결과 나온 라벨링 그리기
-                    self.object_tracking(frame, self.dd.image, bbox)
+    def init_object_tracking(self, oldframe, newframe):
+        bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
+        if bbox:
+            # print(np.array_equal(self.dd.image, frame))
+            # self.gui.slider.setValue(
+            #     self.dd.frame_number + 1)   # 다음 frame으로 업데이트
+            # print(np.array_equal(self.dd.image, frame))
+            if not self.is_tracking:
+                # object tracking 한 결과 나온 라벨링 그리기
+                self.object_tracking(oldframe, newframe, bbox, init=True)
+                self.is_tracking = True
             else:
-                print("No bbox")
-                self.toggle = False
+                # object tracking 한 결과 나온 라벨링 그리기
+                self.object_tracking(oldframe, newframe, bbox)
+        else:
+            print("No bbox")
             
 
     def check_bbox(self):
@@ -449,16 +445,17 @@ class Controller():
         Returns:
             bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
-        label_list = self.dd.frame_label_check(self.dd.frame_number)
-        next_label_list = self.dd.frame_label_check(self.dd.frame_number + 1)
+        fn = self.dd.frame_number
+        label_list = self.dd.frame_label_check(fn - 1)
+        next_label_list = self.dd.frame_label_check(fn)
         bbox = []
         print(label_list, next_label_list, self.annotation)
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
             for annotation in self.annotation:
                 label = annotation.get_label()
                 if label not in next_label_list:
-                    coord_list = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['coords']
-                    color = self.dd.frame_label_dict[self.dd.frame_number]['rectangle'][label]['color']
+                    coord_list = self.dd.frame_label_dict[fn - 1]['rectangle'][label]['coords']
+                    color = self.dd.frame_label_dict[fn - 1]['rectangle'][label]['color']
                     x = coord_list[0][0]
                     y = coord_list[0][1]
                     w = coord_list[1]
@@ -468,9 +465,14 @@ class Controller():
                     # print(f"{label}의 bbox:", bbox)
             print("현재 프레임의 bbox들 좌표:", bbox)
         else:
+            self.stop_playing()
             print("bbox error")
         return bbox
 
+    def stop_playing(self):
+        self.gui.is_tracking = False
+        self.gui.playButtonClicked()
+    
     def object_tracking(self, oldframe, newframe, bbox, init=False):
         """ 주어진 frame이미지에 tracking한 물체에 bbox를 그리고 정보를 저장합니다.
 
@@ -499,6 +501,10 @@ class Controller():
                 # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
                 bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
                     new_bbox[2]), int(new_bbox[3]))
+                if not self.is_roi_within_bounds(bbox_, self.dd.frame_width, self.dd.frame_height):
+                    print("화면 벗어남")
+                    self.stop_playing()
+                    return 
                 if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7):
                     # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                     # label = self.annotation[0].get_label()
@@ -516,8 +522,10 @@ class Controller():
                                       frame_number=self.dd.frame_number)
                     # print(self.dd.frame_label_dict)
                 else:
+                    self.stop_playing()
                     print("유사도 떨어짐 감지")
         else:
+            self.stop_playing()
             print("object tracking failed")
 
     def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
@@ -527,60 +535,12 @@ class Controller():
                        oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
                         newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
-        
         similarity = self.similarity_score('hsv', roi1, roi2)
 
         if similarity <= similarity_threshold:
             return False
         else:
             return True
-        
-        # fig, ax = plt.subplots(1, 3)
-        # ax[0].imshow(roi)
-        # ax[0].set_title("Old Frame ROI")
-        # ax[1].imshow(roi)
-        # ax[1].set_title("New Frame ROI")
-
-        # # roi = cv2.resize(roi, (300, 300))
-        # # roi2 = cv2.resize(roi2, (300, 300))
-        # # print(np.array_equal(roi, roi2))
-
-        # # Initiate SIFT detector
-        # orb = cv2.ORB_create()
-
-        # # find the keypoints and descriptors with SIFT
-        # kp1, des1 = orb.detectAndCompute(roi, None)
-        # kp2, des2 = orb.detectAndCompute(roi, None)
-
-        # # create BFMatcher object
-        # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-
-        # # Match descriptors.
-        # try:
-        #     matches = bf.match(des1, des2)
-
-        #     # matches = sorted(matches, key=lambda x: x.distance)
-        #     # good_matches = matches[:80]
-        #     print('# of kp1:', len(kp1))
-        #     print('# of kp2:', len(kp2))
-        #     print('# of matches:', len(matches))
-        #     # print('# of good_matches:', len(good_matches))
-        #     similarity = len(matches) / max(len(kp1), len(kp2))
-        #     img3 = cv2.drawMatches(roi, kp1, roi, kp2,
-        #                            matches[:10], None, flags=2)
-
-        #     ax[2].imshow(img3)
-        #     ax[2].set_title("compare")
-        #     plt.show()
-
-        #     print(f"similarity: {similarity}")
-        #     if similarity >= similarity_threshold:
-        #         return True
-        #     else:
-        #         return False
-        # except:
-        #     print("No similarity")
-        #     return False
 
     def similarity_score(self, mode, previous_roi, current_roi):
         if mode == 'hsv':
@@ -600,3 +560,22 @@ class Controller():
             print('similarity score:', 1 - score)
 
             return 1 - score
+    
+    def is_roi_within_bounds(self, bbox, screen_width, screen_height, max_ratio=0.8):
+        roi_x = bbox[0][0]
+        roi_y = bbox[0][1]
+        roi_width = bbox[1]
+        roi_height = bbox[2]
+        roi_right = roi_x + roi_width
+        roi_bottom = roi_y + roi_height
+        # print(bbox)
+        # print(roi_right, roi_bottom)
+
+        if roi_x < 0 or roi_y < 0 or roi_right > screen_width or roi_bottom > screen_height:
+            return False
+
+        roi_area = roi_width * roi_height
+        screen_area = screen_width * screen_height
+        roi_ratio = roi_area / screen_area
+
+        return roi_ratio <= max_ratio

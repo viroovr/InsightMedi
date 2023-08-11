@@ -88,7 +88,9 @@ class DcmData():
         self.video_player = cv2.VideoCapture()
         self.video_player.open(fname[0])
         self.total_frame = int(self.video_player.get(cv2.CAP_PROP_FRAME_COUNT))
-
+        self.frame_width = int(self.video_player.get(cv2.CAP_PROP_FRAME_WIDTH))  # 프레임 폭
+        self.frame_height = int(self.video_player.get(cv2.CAP_PROP_FRAME_HEIGHT))  # 프레임 높이
+        print(self.frame_width, self.frame_height)
         ret, self.frame = self.video_player.read()
         if ret:
             self.image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
