@@ -265,6 +265,13 @@ class Controller():
         self.annotation = []
         self.canvas.draw()
 
+    def pop_annotation(self, label_name):
+        if not self.annotation:
+            return
+        for an in self.annotation:
+            if an.get_label() == label_name:
+                self.annotation.remove(an)
+    
     def delete_label(self, label_name):
         """ contorls -> Viewer_GUI -> dcm_data순으로 버튼을 비활성화하고 데이터를 지웁니다."""
         # 모든 frame에 label_name 이름을 가진 label의 개수
@@ -305,7 +312,7 @@ class Controller():
             patch.remove()
         for patch in self.ax.lines:
             patch.remove()
-        self.annotation.clear()
+        self.annotation = []
         self.canvas.draw()
 
     # modify functions
@@ -331,7 +338,7 @@ class Controller():
         """
         if isOff:
             # ctrl click이 아닐 시 다른 강조들을 해제합니다.
-            print("모두 해제")
+            # print("모두 해제")
             self.select_off_all()
         self.annotation.append(annotation)
         self.set_edge_thick(annotation, line_width=3)
@@ -360,7 +367,7 @@ class Controller():
         """
         if not _label_name and self.annotation:
             _label_name = [an.get_label() for an in self.annotation]
-            print(f"{sys._getframe(0).f_code.co_name}: _label_name : {_label_name}")
+            # print(f"{sys._getframe(0).f_code.co_name}: _label_name : {_label_name}")
         self.erase_all_annotation()
 
         frame_directory = self.dd.frame_label_dict[frame]
@@ -405,16 +412,17 @@ class Controller():
     # object tracking
     def toggle_object_tracking(self):
         if not self.toggle:
-            self.thread = threading.Thread(target=self.init_object_tracking)
             self.toggle = True
+            self.thread = threading.Thread(target=self.init_object_tracking)
+            # self.init_object_tracking()
             self.thread.start()
         else:
             self.toggle = False
-            self.thread.join()
+            # self.thread.join()
     
     def init_object_tracking(self):
         while self.toggle:
-            # sleep(0.1)
+            sleep(0.5)
             bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
             frame = copy.deepcopy(self.dd.image)
             if bbox:
@@ -444,6 +452,7 @@ class Controller():
         label_list = self.dd.frame_label_check(self.dd.frame_number)
         next_label_list = self.dd.frame_label_check(self.dd.frame_number + 1)
         bbox = []
+        print(label_list, next_label_list, self.annotation)
         if self.dd.file_mode == 'mp4' and label_list and self.annotation:
             for annotation in self.annotation:
                 label = annotation.get_label()
@@ -458,6 +467,8 @@ class Controller():
                         (label, [int(x), int(y), int(w), int(h)], color))
                     # print(f"{label}의 bbox:", bbox)
             print("현재 프레임의 bbox들 좌표:", bbox)
+        else:
+            print("bbox error")
         return bbox
 
     def object_tracking(self, oldframe, newframe, bbox, init=False):
@@ -475,7 +486,7 @@ class Controller():
             # ok = self.tracker[label].init(frame, label_bbox)
             for label_bbox in bbox:
                 tracker = cv2.legacy.TrackerCSRT_create()
-                self.multitracker.add(tracker, newframe, label_bbox[1])
+                self.multitracker.add(tracker, oldframe, label_bbox[1])
 
         ok, new_bboxes = self.multitracker.update(newframe)
 
@@ -495,8 +506,7 @@ class Controller():
                     label = bbox[i][0]
                     print(*bbox_, color, label)
                     # 라벨 그리기 및 저장
-                    if self.annotation:
-                        self.annotation.pop(0)
+                    self.pop_annotation(label)
                     new_annotation = self.ax.add_patch(
                         Rectangle(*bbox_,
                                   fill=False, picker=True, label=label, edgecolor=color))
