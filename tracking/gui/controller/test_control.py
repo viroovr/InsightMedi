@@ -471,7 +471,7 @@ class Controller():
                 # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
                 bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
                     new_bbox[2]), int(new_bbox[3]))
-                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.22):
+                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7):
                     # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                     # label = self.annotation[0].get_label()
                     color = bbox[i][2]
@@ -496,10 +496,18 @@ class Controller():
     def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
         print(f"old : {oldbox}, new: {newbox}")
         # print(np.array_equal(oldframe, newframe))
-        roi = oldframe[oldbox[1]:oldbox[1] +
+        roi1 = oldframe[oldbox[1]:oldbox[1] +
                        oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
                         newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
+        
+        similarity = self.similarity_score('hsv', roi1, roi2)
+
+        if similarity <= similarity_threshold:
+            return False
+        else:
+            return True
+        
         # fig, ax = plt.subplots(1, 3)
         # ax[0].imshow(roi)
         # ax[0].set_title("Old Frame ROI")
@@ -546,3 +554,22 @@ class Controller():
         # except:
         #     print("No similarity")
         #     return False
+
+    def similarity_score(self, mode, previous_roi, current_roi):
+        if mode == 'hsv':
+            previous_hsv = cv2.cvtColor(previous_roi, cv2.COLOR_BGR2HSV)
+            current_hsv = cv2.cvtColor(current_roi, cv2.COLOR_BGR2HSV)
+
+            # histogram
+            previous_hist = cv2.calcHist([previous_hsv], [0], None, [256], [0,256])
+            current_hist = cv2.calcHist([current_hsv], [0], None, [256], [0,256])
+
+            # normalize
+            previous_hist = previous_hist / previous_hist.sum()
+            current_hist = current_hist / current_hist.sum()
+
+            # comapre histogram
+            score = cv2.compareHist(previous_hist, current_hist, cv2.HISTCMP_BHATTACHARYYA)
+            print('similarity score:', 1 - score)
+
+            return 1 - score
