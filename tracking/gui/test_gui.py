@@ -333,10 +333,11 @@ class MyWindow(QMainWindow):
             self.timer.start()
             self.timer.timeout.connect(self.updateFrame)
             self.timer.start(16)
+
         else:    # 영상 정지
             self.play_button.setText("Play")
             self.timer.timeout.disconnect(self.updateFrame)
-            self.set_frame_label()   # 현재 frame 상태 화면에 update
+            #self.set_frame_label()   # 현재 frame 상태 화면에 update
             self.timer.stop()
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
@@ -355,11 +356,15 @@ class MyWindow(QMainWindow):
             # frame에 라벨이 존재하면 라벨을 보여줍니다.
             if self.is_tracking:
                 self.cl.init_object_tracking(prev_frame, rgb_frame)
+
             if self.dd.frame_number in self.dd.frame_label_dict:
                 self.cl.label_clicked(self.dd.frame_number)
 
             if self.timer.isActive():   # 영상 재생 중
                 self.slider.setValue(self.dd.frame_number)
+
+                if self.dd.frame_number == self.dd.total_frame:
+                    self.playButtonClicked()
 
         print("update Frame 호출, 현재 frame: ", self.dd.frame_number)
 

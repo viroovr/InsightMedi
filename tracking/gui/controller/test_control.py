@@ -505,7 +505,7 @@ class Controller():
                     print("화면 벗어남")
                     self.stop_playing()
                     return 
-                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7):
+                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7, 50):
                     # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                     # label = self.annotation[0].get_label()
                     color = bbox[i][2]
@@ -528,17 +528,23 @@ class Controller():
             self.stop_playing()
             print("object tracking failed")
 
-    def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
+    def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold, coords_threshold):
         print(f"old : {oldbox}, new: {newbox}")
         # print(np.array_equal(oldframe, newframe))
         roi1 = oldframe[oldbox[1]:oldbox[1] +
                        oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
                         newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
-        similarity = self.similarity_score('hsv', roi1, roi2)
 
-        if similarity <= similarity_threshold:
-            return False
+        if abs(oldbox[0] - newbox[0][0]) > coords_threshold or abs(oldbox[1] - newbox[0][1]) > coords_threshold:
+            similarity = self.similarity_score('hsv', roi1, roi2)
+            
+            if similarity <= similarity_threshold:
+                print("label이 튀고 유사도가 낮음", similarity)
+                return False
+            else:
+                print("label 튀었지만 유사도 높음", similarity)
+                return True
         else:
             return True
 
