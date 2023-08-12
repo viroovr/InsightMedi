@@ -8,7 +8,9 @@ matplotlib.use("Qt5Agg")
 
 
 class DcmData():
-    def __init__(self) -> None:
+    def __init__(self, get) -> None:
+        self.get = get
+        
         # file_mode가 'dcm'이면 dcm또는 DCM파일. file_mode가 'mp4' mp4파일을 가리킵니다.
         self.file_mode = None
 

@@ -12,20 +12,8 @@ import random
 
 
 class Controller():
-    def __init__(self, dd: DcmData, canvas: FigureCanvas, gui) -> None:
-        self.canvas = canvas
-        self.dd = dd
-        self.gui = gui
-        self.fig = canvas.figure
-        self.ax = self.fig.add_subplot(111, aspect='auto')
-
-        # canvas fig 색상 변경
-        self.fig.patch.set_facecolor('#303030')
-        self.ax.patch.set_facecolor("#3A3A3A")
-        self.ax.axis("off")
-        # self.ax.tick_params(axis = 'x', colors = 'gray')
-        # self.ax.tick_params(axis = 'y', colors = 'gray')
-
+    def __init__(self, get) -> None:
+        self.get = get
         self.annotation_mode = None
         self.annotation = []
         self.current_annotation = None
@@ -42,6 +30,12 @@ class Controller():
         self.tracker = {}
         self.is_tracking = False
         self.toggle = False
+
+    def init_instance_member(self):
+        self.dd = self.get('data')
+        self.gui = self.get('gui')
+        self.canvas = self.gui.canvas
+
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
         """다음순서로 args받아야 합니다. button_press_event, motion_notify_event, button_release_event"""

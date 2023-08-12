@@ -13,8 +13,9 @@ from controller.test_control import Controller
 from data.test_data import DcmData
 
 class Gui(QMainWindow):
-    def __init__(self):
+    def __init__(self, get):
         super().__init__()
+        self.get = get
         self.initUI()
 
     def initUI(self):
@@ -27,11 +28,16 @@ class Gui(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.canvas = FigureCanvas(Figure(figsize=(4, 3)))
+        fig = self.canvas.figure
+        ax = fig.add_subplot(111, aspect='auto')
 
-        self.dd = DcmData()    # dcm_data.py의 DcmData()
-        # # control.py의 Controller()
-        self.cl = Controller(self.dd, self.canvas, self)
-
+        # canvas fig 색상 변경
+        fig.patch.set_facecolor('#303030')
+        ax.patch.set_facecolor("#3A3A3A")
+        ax.axis("off")
+        # self.ax.tick_params(axis = 'x', colors = 'gray')
+        # self.ax.tick_params(axis = 'y', colors = 'gray')
+        
         # label list
         self.label_layout = QVBoxLayout()
         self.set_buttons()
@@ -70,6 +76,9 @@ class Gui(QMainWindow):
         # Create actions
         self.create_actions(toolbar)
 
+    def init_instance_member(self):
+        self.dd = self.get('data')   # dcm_data.py의 DcmData()
+        self.cl = self.get('control') # control.py의 Controller()
 
     def closeEvent(self, event):
         # mainWindow종료시 할당된 메모리 해제하기
