@@ -2,13 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import sys
-import threading
 
 import copy
 from time import sleep
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
-from gui.data.test_data import DcmData
+from data.test_data import DcmData
 import random
 
 

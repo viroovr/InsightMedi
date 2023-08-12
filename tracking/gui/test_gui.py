@@ -7,61 +7,34 @@ import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.figure import Figure
-
-from gui.data.test_data import DcmData
-from gui.controller.test_control import Controller
 from functools import partial
+import static.stylesheet as style
+from controller.test_control import Controller
+from data.test_data import DcmData
 
-
-class MyWindow(QMainWindow):
+class Gui(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.timer = None
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("InsightMedi Viewer")
         self.setGeometry(100, 100, 1280, 720)    # 초기 window 위치, size
 
+        # main widget
         self.main_widget = QWidget()
-        self.main_widget.setStyleSheet("background-color: #303030;")
-
+        self.main_widget.setStyleSheet(style.main)
         self.setCentralWidget(self.main_widget)
 
         self.canvas = FigureCanvas(Figure(figsize=(4, 3)))
 
         self.dd = DcmData()    # dcm_data.py의 DcmData()
-        # control.py의 Controller()
+        # # control.py의 Controller()
         self.cl = Controller(self.dd, self.canvas, self)
 
         # label list
-        # self.label_list = QWidget()
         self.label_layout = QVBoxLayout()
-        # self.label_list.setLayout(self.label_layout)
-        self.buttons = {}
-        for i in range(8):
-            self.button_layout = QHBoxLayout()
-            label_name = "label %d" % (i + 1)
-            self.label_button = QPushButton(label_name)
-            self.label_button.setStyleSheet(
-                "color: gray; height: 30px; width: 120px;")
-            self.label_button.clicked.connect(
-                partial(self.label_button_clicked, label_name))
-            self.label_button.setFocusPolicy(Qt.NoFocus)
-
-            self.go_button = QPushButton("GO")
-            self.go_button.setStyleSheet(
-                "color: gray; height: 30px; width: 50px;")
-            self.go_button.clicked.connect(
-                partial(self.go_button_clicked, label_name))
-            self.go_button.setFocusPolicy(Qt.NoFocus)
-
-            self.button_layout.addWidget(self.label_button)
-            self.button_layout.addWidget(self.go_button)
-            self.label_layout.addLayout(self.button_layout)
-
-            self.label_go_buttons = [self.label_button, self.go_button]
-            self.buttons[label_name] = self.label_go_buttons
+        self.set_buttons()
 
         # slider
         self.slider_layout = QHBoxLayout()
@@ -70,31 +43,17 @@ class MyWindow(QMainWindow):
 
         # Frame label
         self.frame_label = QLabel("")
-        self.frame_label.setStyleSheet("color: lightgray;")
+        self.frame_label.setStyleSheet(style.lightfont)
         self.slider_layout.addWidget(self.frame_label)
 
         # play button
         self.play_button = QPushButton("Play")
-        self.play_button.setStyleSheet("color: lightgray; height: 20px")
+        self.play_button.setStyleSheet(style.playbutton)
         self.play_button.setFocusPolicy(Qt.NoFocus)
-        self.video_status = None
 
         # GUI Layout
-        grid_box = QGridLayout(self.main_widget)
-        grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        # grid_box.setColumnStretch(1, 1)   # column 1 width 1
-
-        # column 0
-        grid_box.addWidget(self.canvas, 0, 0, 8, 1)
-        grid_box.addLayout(self.slider_layout, 8, 0)
-
-        # column 1
-        # grid_box.addWidget(self.frame_label, 8, 1)
-
-        # column 2
-        grid_box.addLayout(self.label_layout, 0, 1)
-        grid_box.addWidget(self.play_button, 1, 1)
-
+        self.set_gui_layout()
+        
         # 창 중앙 정렬
         screen_geometry = QApplication.desktop().availableGeometry()
         center_x = (screen_geometry.width() - self.width()) // 2
@@ -102,49 +61,15 @@ class MyWindow(QMainWindow):
         self.move(center_x, center_y)
 
         self.is_tracking = False
-
-        '''
-        Toolbar
-        '''
+        self.video_status = None
+        self.timer = None
 
         # Create a toolbar
         toolbar = self.addToolBar("Toolbar")
-        # toolbar.setStyleSheet("background-color: #3e3e3e;")
 
-        # Open file action
-        open_action = QAction(
-            QIcon('gui/icon/open_file_icon.png'), "Open File", self)
-        open_action.triggered.connect(self.open_file)
-        toolbar.addAction(open_action)
+        # Create actions
+        self.create_actions(toolbar)
 
-        # Save file action
-        save_action = QAction(QIcon('gui/icon/save_icon.png'), "Save", self)
-        save_action.triggered.connect(self.save)
-        toolbar.addAction(save_action)
-
-        # Selector action
-        cursor_action = QAction(
-            QIcon('gui/icon/cursor_icon.png'), "Selector", self)
-        cursor_action.triggered.connect(self.selector)
-        toolbar.addAction(cursor_action)
-
-        # Rectangle action
-        rectangle_action = QAction(
-            QIcon('gui/icon/rectangle_icon.png'), "Rectangle", self)
-        rectangle_action.triggered.connect(self.draw_rectangle)
-        toolbar.addAction(rectangle_action)
-
-        # delete action
-        delete_action = QAction(
-            QIcon('gui/icon/delete_icon.png'), "Delete", self)
-        delete_action.triggered.connect(self.delete)
-        toolbar.addAction(delete_action)
-
-        # delete all action
-        delete_all_action = QAction(
-            QIcon('gui/icon/delete_all_icon.png'), "Delete All", self)
-        delete_all_action.triggered.connect(self.delete_all)
-        toolbar.addAction(delete_all_action)
 
     def closeEvent(self, event):
         # mainWindow종료시 할당된 메모리 해제하기
@@ -411,3 +336,54 @@ class MyWindow(QMainWindow):
         if event.key() == Qt.Key_Space:
             print("space bar 눌림")
             self.playButtonClicked()
+
+    def set_buttons(self):
+        self.buttons = {}
+        for i in range(8):
+            button_layout = QHBoxLayout()
+            label_name = "label %d" % (i + 1)
+            label_button = QPushButton(label_name)
+            label_button.setStyleSheet(style.labelbutton)
+            label_button.clicked.connect(
+                partial(self.label_button_clicked, label_name))
+            label_button.setFocusPolicy(Qt.NoFocus)
+
+            go_button = QPushButton("GO")
+            go_button.setStyleSheet(style.gobutton)
+            go_button.clicked.connect(
+                partial(self.go_button_clicked, label_name))
+            go_button.setFocusPolicy(Qt.NoFocus)
+
+            button_layout.addWidget(label_button)
+            button_layout.addWidget(go_button)
+            self.label_layout.addLayout(button_layout)
+
+            label_go_buttons = [label_button, go_button]
+            self.buttons[label_name] = label_go_buttons
+
+    def set_gui_layout(self):
+        grid_box = QGridLayout(self.main_widget)
+        grid_box.setColumnStretch(0, 4)   # column 0 width 4
+        # grid_box.setColumnStretch(1, 1)   # column 1 width 1
+
+        # column 0
+        grid_box.addWidget(self.canvas, 0, 0, 8, 1)
+        grid_box.addLayout(self.slider_layout, 8, 0)
+
+        # column 1
+        # grid_box.addWidget(self.frame_label, 8, 1)
+
+        # column 2
+        grid_box.addLayout(self.label_layout, 0, 1)
+        grid_box.addWidget(self.play_button, 1, 1)
+
+    def create_actions(self, toolbar):
+        # Open file action
+        actions = ["open", "save", "selector", "rectangle", "delete", "clear"]
+        func = [self.open_file, self.save, self.selector, self.draw_rectangle, self.delete, self.delete_all]
+        icon_dir = 'gui/icon'
+        pack = zip(actions, func)
+        for x in pack:
+            action = QAction(QIcon(f'{icon_dir}/{x[0]}_icon.png'), x[0].title(), self)
+            action.triggered.connect(x[1])
+            toolbar.addAction(action)
