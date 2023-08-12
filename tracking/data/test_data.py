@@ -58,6 +58,18 @@ class DcmData():
                 except FileNotFoundError:
                     pass
 
+    def load_all_label(self): 
+        ld = self.frame_label_dict
+        flc = self.frame_label_check
+        all_labels = set()
+        for frame in ld:
+            labels = flc(frame)
+            if labels:
+                for label in labels:
+                    all_labels.add(label)
+
+        return all_labels
+     
     def save_label(self):
         for key in self.frame_label_dict:
             with open(f"{self.label_dir}/{key}.txt", 'w') as f:

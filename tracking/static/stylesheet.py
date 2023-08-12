@@ -1,8 +1,8 @@
 # main widget
-main = "background-color: #303030;"
+MAIN = "background-color: #303030;"
 
 #font color
-lightfont = "color: lightgray;"
+LIGHTFONT = "color: lightgray;"
 
 #height
 height20 = "height: 20px"
@@ -10,10 +10,12 @@ height20 = "height: 20px"
 
 #Buttons
 #label button
-labelbutton = "color: gray; height: 30px; width: 120px;"
+NORMAL_LABEL_BUTTON = "color: gray; font-weight: normal; height: 30px; width: 120px;"
+BOLD_LABEL_BUTTON = "color: white; font-weight: bold; height: 30px; width: 120px;"
 
 #go button
-gobutton = "color: gray; height: 30px; width: 50px;"
+NORMAL_GO_BUTTON = "color: gray; font-weight: normal; height: 30px; width: 50px;"
+BOLD_GO_BUTTON = "color: white; font-weight: bold; height: 30px; width: 50px;"
 
 #play button
-playbutton = "color: lightgray; height: 20px;"
+PLAY_BUTTON = "color: lightgray; height: 20px;"

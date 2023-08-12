@@ -24,20 +24,11 @@ class Gui(QMainWindow):
 
         # main widget
         self.main_widget = QWidget()
-        self.main_widget.setStyleSheet(style.main)
+        self.main_widget.setStyleSheet(style.MAIN)
         self.setCentralWidget(self.main_widget)
 
-        self.canvas = FigureCanvas(Figure(figsize=(4, 3)))
-        fig = self.canvas.figure
-        ax = fig.add_subplot(111, aspect='auto')
+        self.init_canvas()
 
-        # canvas fig 색상 변경
-        fig.patch.set_facecolor('#303030')
-        ax.patch.set_facecolor("#3A3A3A")
-        ax.axis("off")
-        # self.ax.tick_params(axis = 'x', colors = 'gray')
-        # self.ax.tick_params(axis = 'y', colors = 'gray')
-        
         # label list
         self.label_layout = QVBoxLayout()
         self.set_buttons()
@@ -49,12 +40,12 @@ class Gui(QMainWindow):
 
         # Frame label
         self.frame_label = QLabel("")
-        self.frame_label.setStyleSheet(style.lightfont)
+        self.frame_label.setStyleSheet(style.LIGHTFONT)
         self.slider_layout.addWidget(self.frame_label)
 
         # play button
         self.play_button = QPushButton("Play")
-        self.play_button.setStyleSheet(style.playbutton)
+        self.play_button.setStyleSheet(style.PLAY_BUTTON)
         self.play_button.setFocusPolicy(Qt.NoFocus)
 
         # GUI Layout
@@ -75,6 +66,19 @@ class Gui(QMainWindow):
 
         # Create actions
         self.create_actions(toolbar)
+    
+    def init_canvas(self):
+        self.canvas = FigureCanvas(Figure(figsize=(4, 3)))
+        fig = self.canvas.figure
+        ax = fig.add_subplot(111, aspect='auto')
+
+        # canvas fig 색상 변경
+        fig.patch.set_facecolor('#303030')
+        ax.patch.set_facecolor("#3A3A3A")
+        ax.axis("off")
+        # self.ax.tick_params(axis = 'x', colors = 'gray')
+        # self.ax.tick_params(axis = 'y', colors = 'gray')
+
 
     def init_instance_member(self):
         self.dd = self.get('data')   # dcm_data.py의 DcmData()
@@ -92,15 +96,11 @@ class Gui(QMainWindow):
             self.video_status = None
             self.dd.video_player.release()
 
-    def set_frame_label(self, init=False):
-        if init:
-            frame = 0
-        else:
-            frame = self.dd.frame_number
-
+    def set_frame_label(self):
+        frame = self.dd.frame_number
         total_frame = int(self.dd.total_frame) - 1
         self.frame_label.setText(f"{frame} / {total_frame}")
-
+    
     def open_file(self):
         # 파일 열기 기능 구현
         options = QFileDialog.Options()
@@ -109,71 +109,60 @@ class Gui(QMainWindow):
 
         if fname[0]:   # 새로운 파일 열기 한 경우
             # 기존 파일 정보 삭제
-            self.setCursor(Qt.ArrowCursor)
-            self.canvas.figure.clear()
-            self.release_resources()
-            self.slider.setValue(0)    # slider value 초기화
-
+            self.reset_env()
             # 파일 열기
-            dd = self.dd
-            dd.open_file(fname)
-
+            self.dd.open_file(fname)
             # viewer 설정 초기화
-            # open한 파일에 이미 저장되어 있는 label button 활성화하는 함수
-            self.load_label_button(dd.frame_label_dict)
-            self.set_frame_label(init=True)
-
-            if dd.file_mode == "mp4":  # mp4 파일인 경우
-                self.timer = QTimer()
-                self.set_frame_label()
-
-                self.cl.img_show(dd.image, init=True)
-                if self.dd.frame_label_check(self.dd.frame_number):
-                    self.cl.label_clicked(self.dd.frame_number)
-
-                # slider 설정
-                self.slider.setMaximum(dd.total_frame - 1)
-                self.slider.setTickPosition(
-                    QSlider.TicksBelow)  # 눈금 위치 설정 (아래쪽)
-                self.slider.setTickInterval(10)  # 눈금 간격 설정
-                self.slider.valueChanged.connect(self.sliderValueChanged)
-                self.play_button.clicked.connect(self.playButtonClicked)
-
+            self.load_label_button()
+            
+            if self.dd.file_mode == "mp4":
+                self.init_mp4_ui()
             else:    # viewer에 호환되지 않는 확장자 파일
                 print("Not accepted file format")
         else:
             print("Open fail")
+    
+    def reset_env(self):
+        self.release_resources()
+        self.setCursor(Qt.ArrowCursor)
+        self.disable_total_label()
+        self.canvas.figure.clear()
+        self.slider.setValue(0)    # slider value 초기화
+    
+    def init_mp4_ui(self):
+        self.timer = QTimer()
+        self.cl.img_show(self.dd.image, init=True)
 
-    def load_label_button(self, ld):    # frame_label_dict에 있는 label 정보 버튼에 반영하기
-        all_labels = set()
-        for frame in ld:
-            labels = self.dd.frame_label_check(frame)
-            if labels:
-                for label in labels:
-                    all_labels.add(label)
+        if self.dd.frame_label_check(self.dd.frame_number):
+            self.cl.label_clicked(self.dd.frame_number)
 
+        # slider 설정
+        self.slider.setMaximum(dd.total_frame - 1)
+        self.slider.setTickPosition(
+            QSlider.TicksBelow)  # 눈금 위치 설정 (아래쪽)
+        self.slider.setTickInterval(10)  # 눈금 간격 설정
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+        self.play_button.clicked.connect(self.playButtonClicked)
+
+    def load_label_button(self):
+        # frame_label_dict에 있는 label 정보 버튼에 반영하기
+        # open한 파일에 이미 저장되어 있는 label button 활성화하는 함수
+        all_labels = self.dd.load_all_label()
+        
         for label_name in self.buttons:
             temp_label_buttons = self.buttons[label_name]
             if label_name in all_labels:
-                temp_label_buttons[0].setStyleSheet(
-                    "color: white; font-weight: bold; height: 30px; width: 120px;")
-                temp_label_buttons[1].setStyleSheet(
-                    "color: white; font-weight: bold; height: 30px; width: 50px;")
-            else:
-                temp_label_buttons[0].setStyleSheet(
-                    "color: gray; font-weight: normal; height: 30px; width: 120px;")
-                temp_label_buttons[1].setStyleSheet(
-                    "color: gray; font-weight: normal; height: 30px; width: 50px;")
+                temp_label_buttons[0].setStyleSheet(style.BOLD_LABEL_BUTTON)
+                temp_label_buttons[1].setStyleSheet(style.BOLD_GO_BUTTON)
 
         self.label_layout.update()
+        self.set_frame_label()
 
     def label_button_clicked(self, label):
         button_list = self.buttons[label]
         # print(f"self.buttons : {self.buttons}")
-        button_list[0].setStyleSheet(
-            "color: white; font-weight: bold; height: 30px; width: 120px;")
-        button_list[1].setStyleSheet(
-            "color: white; font-weight: bold; height: 30px; width: 50px;")
+        button_list[0].setStyleSheet(style.BOLD_LABEL_BUTTON)
+        button_list[1].setStyleSheet(style.BOLD_GO_BUTTON)
 
         for frame in self.dd.frame_label_dict:
             frame_labels = self.dd.frame_label_check(frame)
@@ -210,21 +199,13 @@ class Gui(QMainWindow):
 
         self.cl.label_clicked(frame, label)
 
-    """ def disable_total_label(self):
+    def disable_total_label(self):
         # 해당 프레임에 있는 전체 label 버튼 비활성화
-        frame_labels = self.dd.frame_label_check(self.dd.frame_number)
-        if frame_labels:
-            for _label_name in frame_labels:
-                button_list = self.buttons[_label_name]
-                button_list[0].setStyleSheet(
-                    "color: gray; font-weight: normal; height: 30px; width: 120px;")
-                button_list[1].setStyleSheet(
-                    "color: gray; font-weight: normal; height: 30px; width: 50px;")
-                self.dd.delete_label(_label_name)
-            self.label_layout.update()
-
-        # data에서 해당 라벨 이름 정보 제거하기
-        self.dd.delete_label(_label_name) """
+        button_list = self.buttons.values()
+        for button in button_list:
+            button[0].setStyleSheet(style.NORMAL_LABEL_BUTTON)
+            button[1].setStyleSheet(style.NORMAL_GO_BUTTON)
+        self.label_layout.update()
 
     def disable_label_button(self, _label_name):
         # 특정 label 버튼 볼드체 풀기 (비활성화)
@@ -352,13 +333,13 @@ class Gui(QMainWindow):
             button_layout = QHBoxLayout()
             label_name = "label %d" % (i + 1)
             label_button = QPushButton(label_name)
-            label_button.setStyleSheet(style.labelbutton)
+            label_button.setStyleSheet(style.NORMAL_LABEL_BUTTON)
             label_button.clicked.connect(
                 partial(self.label_button_clicked, label_name))
             label_button.setFocusPolicy(Qt.NoFocus)
 
             go_button = QPushButton("GO")
-            go_button.setStyleSheet(style.gobutton)
+            go_button.setStyleSheet(style.NORMAL_GO_BUTTON)
             go_button.clicked.connect(
                 partial(self.go_button_clicked, label_name))
             go_button.setFocusPolicy(Qt.NoFocus)
