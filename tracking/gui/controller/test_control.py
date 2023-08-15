@@ -496,34 +496,36 @@ class Controller():
             # print(f"기존 bbox {bbox}" )
             # print(f"object tracking한 bbox {new_bboxes}")
             # print(f"선택된 annotation {self.annotation}")
-            for i, new_bbox in enumerate(new_bboxes):
-                # 새로운 라벨 저장을 위해 필요한 데이터들
-                # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
-                bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
-                    new_bbox[2]), int(new_bbox[3]))
-                if not self.is_roi_within_bounds(bbox_, self.dd.frame_width, self.dd.frame_height):
-                    print("화면 벗어남")
-                    self.stop_playing()
-                    return 
-                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7, 50):
-                    # print(self.dd.frame_label_check(self.dd.frame_number - 1))
-                    # label = self.annotation[0].get_label()
-                    color = bbox[i][2]
-                    label = bbox[i][0]
-                    print(*bbox_, color, label)
-                    # 라벨 그리기 및 저장
-                    self.pop_annotation(label)
-                    new_annotation = self.ax.add_patch(
-                        Rectangle(*bbox_,
-                                  fill=False, picker=True, label=label, edgecolor=color))
-                    self.select_current_edge(new_annotation)
-                    # print("현재 선택된 label들:", self.annotation)
-                    self.dd.add_label('rectangle', label, bbox_, color,
-                                      frame_number=self.dd.frame_number)
-                    # print(self.dd.frame_label_dict)
-                else:
-                    self.stop_playing()
-                    print("유사도 떨어짐 감지")
+            with open(f'{self.dd.label_dir}/bbox_log.txt', 'a') as log_file:
+                for i, new_bbox in enumerate(new_bboxes):
+                    # 새로운 라벨 저장을 위해 필요한 데이터들
+                    # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
+                    bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
+                        new_bbox[2]), int(new_bbox[3]))
+                    if not self.is_roi_within_bounds(bbox_, self.dd.frame_width, self.dd.frame_height):
+                        print("화면 벗어남")
+                        self.stop_playing()
+                        return 
+                    if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7, 50):
+                        # print(self.dd.frame_label_check(self.dd.frame_number - 1))
+                        # label = self.annotation[0].get_label()
+                        color = bbox[i][2]
+                        label = bbox[i][0]
+                        log_file.write(f"Frame: {self.dd.frame_number}, Label: {label}, Bbox: {new_bbox}\n")
+                        print(*bbox_, color, label)
+                        # 라벨 그리기 및 저장
+                        self.pop_annotation(label)
+                        new_annotation = self.ax.add_patch(
+                            Rectangle(*bbox_,
+                                      fill=False, picker=True, label=label, edgecolor=color))
+                        self.select_current_edge(new_annotation)
+                        # print("현재 선택된 label들:", self.annotation)
+                        self.dd.add_label('rectangle', label, bbox_, color,
+                                          frame_number=self.dd.frame_number)
+                        # print(self.dd.frame_label_dict)
+                    else:
+                        self.stop_playing()
+                        print("유사도 떨어짐 감지")
         else:
             self.stop_playing()
             print("object tracking failed")
