@@ -1,3 +1,4 @@
+#%%
 import sys
 from PyQt5.QtWidgets import QApplication
 from gui.test_gui import MyWindow

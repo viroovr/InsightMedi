@@ -241,11 +241,11 @@ class MyWindow(QMainWindow):
         button_list[1].setStyleSheet(
             "color: white; font-weight: bold; height: 30px; width: 50px;")
 
-        for frame in self.dd.frame_label_dict:
-            frame_labels = self.dd.frame_label_check(frame)
-            if frame_labels and label in frame_labels:
-                self.dd.delete_label(label, frame)
-                self.cl.erase_annotation(label)
+        
+        frame_labels = self.dd.frame_label_check(self.dd.frame_number)
+        if frame_labels and label in frame_labels:
+            self.dd.delete_label(label, self.dd.frame_number)
+            self.cl.erase_annotation(label)
 
         self.cl.is_tracking = False
 
