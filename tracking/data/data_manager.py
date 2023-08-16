@@ -70,3 +70,6 @@ class DataManager():
     def get_image(self):
         if self.file_mode == 'mp4':
             return self.vm.get_frame()
+
+    def label_count(self, label_name):
+        return self.lm.label_count(label_name)

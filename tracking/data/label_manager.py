@@ -82,3 +82,6 @@ class LabelManager():
                 label_data_dict[_label_name]['coords'] = _coor
                 label_data_dict[_label_name]['color'] = _color
                 break
+    
+    def label_count(self, label_name):
+        return sum(1 for frame in self.frame_label_dict.values() for data in frame.values() if label_name in data)
