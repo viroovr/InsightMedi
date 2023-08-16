@@ -1,17 +1,17 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 from gui.test_gui import Gui
-from data.test_data import DcmData
+from tracking.data.data_manager import DataManager
 from controller.test_control import Controller
 
 
 class Main(QApplication):
     def __init__(self) -> None:
         super().__init__(sys.argv)
-        self.data = DcmData(self.get)
+        self.data = DataManager(self.get)
         self.gui = Gui(self.get)
         self.controller = Controller(self.get)
-        
+
         self.gui.init_instance_member()
         self.controller.init_instance_member()
 

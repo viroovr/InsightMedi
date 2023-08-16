@@ -7,7 +7,7 @@ import copy
 from time import sleep
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.patches import Rectangle
-from data.test_data import DcmData
+from data.data_manager import DataManager
 import random
 
 
