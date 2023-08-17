@@ -501,7 +501,7 @@ class Controller():
                     # 새로운 라벨 저장을 위해 필요한 데이터들
                     # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
                     bbox_ = self.refine_bbox(new_bbox, self.dd.frame_width, self.dd.frame_height)
-                    if not self.is_roi_within_bounds(new_bbox, bbox_, self.dd.frame_width, self.dd.frame_height):
+                    if not self.is_roi_within_bounds(new_bbox, bbox_):
                         print("화면 벗어남")
                         self.stop_playing()
                         return 
@@ -568,7 +568,7 @@ class Controller():
 
             return 1 - score
     
-    def is_roi_within_bounds(self, bbox, refined_bbox, screen_width, screen_height, max_ratio=0.6):
+    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.5):
         # roi_x = bbox[0]
         # roi_y = bbox[1]
         roi_width = bbox[2]
