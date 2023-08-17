@@ -16,10 +16,11 @@ class LabelManager():
         """
         text 파일로부터 현재 label dictionary를 불러옵니다
         """
-        for file_name in os.listdir(self.label_dir):
+        for file_name in os.listdir(label_dir):
             if file_name.endswith('.txt'):
                 with open(os.path.join(label_dir, file_name), "r") as f:
-                    self.frame_label_dict[int(file_name.split(".")[0])] = json.load(f)
+                    self.frame_label_dict[int(
+                        file_name.split(".")[0])] = json.load(f)
 
     def load_all_label(self):
         all_labels = set()
@@ -38,7 +39,8 @@ class LabelManager():
         Returns:
             label_list(list): 라벨명 리스트
         """
-        label_list = list(self.frame_label_dict.get(frame, {}).get('rectangle', {}).keys())
+        label_list = list(self.frame_label_dict.get(
+            frame, {}).get('rectangle', {}).keys())
         return label_list
 
     def save_label(self, label_dir):
@@ -57,7 +59,7 @@ class LabelManager():
             os.remove(f"{label_dir}/{file_name}.txt")
         except FileNotFoundError:
             pass
-    
+
     def delete_label(self, _label_name: str, frame_number: int):
         """
         주어진 frame에서 해당하는 라벨이름을 가진 라벨을 frame_dict에서 제거합니다.
@@ -67,7 +69,7 @@ class LabelManager():
             for label_data_dict in label_dict.values():
                 label_data_dict.pop(_label_name, None)
         print(f"라벨 정보 제거 후: {self.frame_label_dict}")
-        
+
     def modify_label_data(self, frame_number, _label_name, _coor, _color):
         """주어진 라벨 이름의 좌표값과 컬러값을 변경합니다.
 
@@ -82,6 +84,29 @@ class LabelManager():
                 label_data_dict[_label_name]['coords'] = _coor
                 label_data_dict[_label_name]['color'] = _color
                 break
-    
+
     def label_count(self, label_name):
         return sum(1 for frame in self.frame_label_dict.values() for data in frame.values() if label_name in data)
+
+    def get_frame_label_info(self, frame):
+        frame_directory = self.frame_label_dict[frame]
+        ret = []
+        for drawing_type, label_directory in frame_directory.items():
+            for label_name, label_data in label_directory.items():
+                coords = label_data["coords"]
+                color = label_data["color"]
+                ret.append((drawing_type, label_name, coords, color))
+
+        return ret
+
+    def is_label_exist(self, label_name, frame_number):
+        frame_labels = self.frame_label_check(frame_number)
+        if label_name in frame_labels:
+            return True
+        return False
+
+    def get_first_frame(self, label):
+        for frame in self.frame_label_dict:
+            if label in self.frame_label_check(frame):
+                return frame, True
+        return None, False

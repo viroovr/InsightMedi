@@ -2,11 +2,13 @@
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from controller.util_annotation import *
 from matplotlib.patches import Rectangle
+from data.data_manager import DataManager
 
 
 class DrawManager():
-    def __init__(self, canvas: FigureCanvas) -> None:
-
+    def __init__(self, canvas: FigureCanvas, get) -> None:
+        self.get = get
+        self.dd: DataManager = self.get('data')
         self.annotation_mode = None
         self.annotation = []
         self.selector_mode = None
@@ -18,10 +20,16 @@ class DrawManager():
         self.is_move = False
         self.cid = []
 
-        self.ax = self.canvas.figure.add_subplot(111, zorder=1)
-
         self.start = self.end = None
         self.drag = []
+
+    def init_figure(self):
+        self.annotation_ax = self.canvas.figure.add_subplot(111, aspect='auto', zorder=1, facecolor="#3A3A3A")
+        self.annotation_ax.patch.set_facecolor("#3A3A3A")
+        self.annotation_ax.axis("off")
+
+        self.frame_ax = self.canvas.figure.add_subplot(111, aspect='auto', facecolor="#3A3A3A")
+        self.frame_ax.axis("off")
 
     # mpl connect & disconnect
     def set_mpl_connect(self, *args):
@@ -87,9 +95,9 @@ class DrawManager():
         """
         if not self.annotation or self.selector_mode != 'selector':
             return
-
-        self.drag.append((an.xy, (event.xdata, event.ydata))
-                         for an in self.annotation)
+        for an in self.annotation:
+            self.drag.append((an.xy, (event.xdata, event.ydata)))
+        print(self.drag)
         self.is_move = True
 
     def selector_on_move(self, event):
@@ -111,7 +119,8 @@ class DrawManager():
         if not self.annotation or not self.is_move or self.selector_mode != 'selector':
             return
         self.is_move = False
-        self.modify_label_data(an for an in self.annotation)
+        for an in self.annotation:
+            self.modify_label_data(an)
         self.drag.clear()
 
     # draw annotation events
@@ -156,11 +165,10 @@ class DrawManager():
             self.current_annotation.remove()
 
         if self.annotation_mode == "rectangle":
-            self.current_annotation = self.ax.add_patch(
-                Rectangle(get_rectangle_coords(self.start, self.end), fill=False, picker=True,
+            self.current_annotation = self.annotation_ax.add_patch(
+                Rectangle(*get_rectangle_coords(self.start, self.end), fill=False, picker=True,
                           label=self.label_name, edgecolor=self.color))
 
-        # self.artist = self.annotation
         set_edge_thick(self.current_annotation, line_width=3)
         self.canvas.draw()
 
@@ -189,11 +197,12 @@ class DrawManager():
         """
         현재 self.ax에서 모든 annotation들의 강조를 풉니다.
         """
-        set_edge_thick(patch for patch in self.annotation)
+        for patch in self.annotation:
+            set_edge_thick(patch)
         self.current_annotation = None
         self.annotation.clear()
         self.canvas.draw()
-    
+
     # delete or remove functions
     def remove_annotation(self):
         """
@@ -206,20 +215,80 @@ class DrawManager():
             self.delete_label(an.get_label())
         self.annotation.clear()
         self.canvas.draw()
-    
+
     def erase_annotation(self, _label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다.
 
         Args:
             _label_name(string): 주어진 라벨이름의 annotation을 제거합니다.
         """
-        (patch.remove() for patch in self.ax.patches if patch.get_label() == _label_name)
-        (patch.remove() for patch in self.ax.lines if patch.get_label() == _label_name)
+        (patch.remove()
+         for patch in self.annotation_ax.patches if patch.get_label() == _label_name)
+        (patch.remove()
+         for patch in self.annotation_ax.lines if patch.get_label() == _label_name)
         self.canvas.draw()
-    
+
     def erase_all_annotation(self):
         """현재 self.ax에 있는 모든 patch들과 선들을 제거합니다."""
-        (patch.remove() for patch in self.ax.patches)
-        (patch.remove() for patch in self.ax.lines)
+        (patch.remove() for patch in self.annotation_ax.patches)
+        (patch.remove() for patch in self.annotation_ax.lines)
         self.annotation.clear()
+        self.canvas.draw()
+
+    def pop_annotation(self, label_name):
+        self.annotation = [
+            an for an in self.annotation if an.get_label() != label_name]
+
+    # modify functions
+    def modify_label_data(self, ar):
+        """
+        변경된 객체의 좌표값들을 읽어와 self.dd에 저장합니다.
+
+        Args:
+            ar(annotation): annotation 객체를 인자로 주어야 합니다.
+        """
+        ret_points = (ar.get_xy(), ar.get_width(), ar.get_height())
+        color = get_color(ar)
+        self.dd.modify_label_data(ar.get_label(), ret_points, color)
+
+    def go_to_frame(self, frame, _label_name=[]):
+        """
+        go버튼 클릭 시 모든 annotation을 지우고 해당 frame으로 이동한 뒤 캔버스에 plot을 그려줍니다.
+
+        Args:
+            _label_name(string or empty list): 해당 라벨의 두께를 두껍게 합니다.
+                                        empty list일 경우, self.annotation 라벨들의 강조를 유지합니다.
+        """
+        if not _label_name and self.annotation:
+            _label_name = [an.get_label() for an in self.annotation]
+            # print(f"{sys._getframe(0).f_code.co_name}: _label_name : {_label_name}")
+        self.erase_all_annotation()
+        annotations_to_select = []
+        info = self.dd.get_frame_label_info(frame)
+        for drawing_type, label, coords, color in info:
+            if drawing_type == "rectangle":
+                annotation = Rectangle(coords[0], coords[1], coords[2], fill=False,
+                                       picker=True, label=label, edgecolor=color)
+                self.annotation_ax.add_patch(annotation)
+
+            if label in _label_name:
+                annotations_to_select.append(annotation)
+        for annotation in annotations_to_select:
+            self.select_current_edge(annotation)
+        self.canvas.draw()
+
+    def frame_show(self, frame, cmap, clear=False):
+        """
+        img를 보여줍니다.
+
+        Args:
+            frame (ndarray): self.ax에 보여줄 이미지 입니다.
+            cmap (cmap): 이미지의 color map을 설정합니다.
+            clear (bool): self.ax를 clear하고 이미지를 보여줍니다.
+        """
+        if clear:
+            self.annotation_ax.clear()
+            self.frame_ax.clear()
+        self.frame_ax.imshow(frame, cmap=cmap)
+        self.frame_ax.axis("off")
         self.canvas.draw()

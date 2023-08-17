@@ -38,4 +38,4 @@ def get_rectangle_coords(start, end):
     height = abs(start[1] - end[1])
     x = min(start[0], end[0])
     y = min(start[1], end[1])
-    return ((x, y), width, height)
+    return (x, y), width, height

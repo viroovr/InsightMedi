@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Tuple
 import matplotlib
 from data.video_manager import VideoManger
 from data.label_manager import LabelManager
@@ -19,6 +19,9 @@ class DataManager():
         self.dm = DcmManager()
         self.lm = LabelManager()
 
+    def init_instance_member(self):
+        pass
+
     def reset_env(self):
         self.lm.reset_label()
         self.vm.reset_video()
@@ -32,15 +35,17 @@ class DataManager():
 
         self.reset_env()
         os.makedirs(self.label_dir, exist_ok=True)
-
-        if file_extension == "mp4":
+        if file_extension == ".mp4":
             self.file_mode = 'mp4'
             self.vm.open_file(fname[0])
 
         self.lm.load_label_dict(self.label_dir)
 
     def load_all_label(self):
-        self.lm.load_all_label()
+        return self.lm.load_all_label()
+
+    def is_label_exist(self, label_name):
+        return self.lm.is_label_exist(label_name, self.vm.get_frame_number())
 
     def save_label(self):
         self.lm.save_label(self.label_dir)
@@ -65,11 +70,33 @@ class DataManager():
         return self.lm.frame_label_check(frame)
 
     def get_frame_label_str(self):
+        """
+        f"{프레임} / {전체프레임}" 형식의 str을 반환합니다.
+        """
         return self.vm.get_frame_label_str()
 
     def get_image(self):
         if self.file_mode == 'mp4':
             return self.vm.get_frame()
 
+    def get_total_frame_number(self):
+        return self.vm.total_frame
+
     def label_count(self, label_name):
         return self.lm.label_count(label_name)
+
+    def get_frame_label_info(self, frame) -> List[Tuple[str, str, Tuple, str]]:
+        """
+        frame_label_dict에서 주어진 frame key값의 label data를 반환합니다
+        [(drawing_type, label_name, coords, color)]형식으로 반환합니다
+        """
+        return self.lm.get_frame_label_info(frame)
+
+    def update_frame(self):
+        return self.vm.updateFrame()
+
+    def set_frame(self, value):
+        self.vm.set_frame(value)
+
+    def get_first_frame(self, label):
+        return self.lm.get_first_frame(label)

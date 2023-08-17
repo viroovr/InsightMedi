@@ -1,31 +1,29 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 from gui.test_gui import Gui
-from tracking.data.data_manager import DataManager
+from data.data_manager import DataManager
 from controller.test_control import Controller
 
 
 class Main(QApplication):
     def __init__(self) -> None:
         super().__init__(sys.argv)
-        self.data = DataManager(self.get)
-        self.gui = Gui(self.get)
-        self.controller = Controller(self.get)
+        self.instances = {
+            'data': DataManager(self.get),
+            'gui': Gui(self.get),
+            'control': Controller(self.get)
+        }
 
-        self.gui.init_instance_member()
-        self.controller.init_instance_member()
+        for instance in self.instances.values():
+            instance.init_instance_member()
 
-        myWindow = self.gui
+        myWindow = self.instances['gui']
         myWindow.show()
         self.exec_()
 
     def get(self, arg):
-        if arg == 'data':
-            return self.data
-        elif arg == 'control':
-            return self.controller
-        elif arg == 'gui':
-            return self.gui
+        if arg in self.instances:
+            return self.instances[arg]
         else:
             print("### Not formatted arg ###")
 

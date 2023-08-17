@@ -1,15 +1,12 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QTimer
-import copy
-import cv2
-import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.figure import Figure
 from functools import partial
 import static.stylesheet as style
-from controller.test_control import Controller
+from controller.test_control import Controller as ct
 from data.data_manager import DataManager
 
 
@@ -28,7 +25,7 @@ class Gui(QMainWindow):
         self.main_widget.setStyleSheet(style.MAIN)
         self.setCentralWidget(self.main_widget)
 
-        self.init_canvas()
+        self.canvas = FigureCanvas(Figure(figsize=(4, 3), facecolor="#303030"))
 
         # label list
         self.label_layout = QVBoxLayout()
@@ -58,31 +55,15 @@ class Gui(QMainWindow):
         center_y = (screen_geometry.height() - self.height()) // 2
         self.move(center_x, center_y)
 
-        self.is_tracking = False
-        self.video_status = None
-        self.timer = None
-
         # Create a toolbar
         toolbar = self.addToolBar("Toolbar")
 
         # Create actions
         self.create_actions(toolbar)
 
-    def init_canvas(self):
-        self.canvas = FigureCanvas(Figure(figsize=(4, 3)))
-        fig = self.canvas.figure
-        ax = fig.add_subplot(111, aspect='auto')
-
-        # canvas fig 색상 변경
-        fig.patch.set_facecolor('#303030')
-        ax.patch.set_facecolor("#3A3A3A")
-        ax.axis("off")
-        # self.ax.tick_params(axis = 'x', colors = 'gray')
-        # self.ax.tick_params(axis = 'y', colors = 'gray')
-
     def init_instance_member(self):
         self.dm: DataManager = self.get('data')   # dcm_data.py의 DcmData()
-        self.cl: Controller = self.get('control')  # control.py의 Controller()
+        self.cl: ct = self.get('control')  # control.py의 Controller()
 
     def closeEvent(self, event):
         # mainWindow종료시 할당된 메모리 해제하기
@@ -121,16 +102,23 @@ class Gui(QMainWindow):
         self.disable_total_label()
         self.canvas.figure.clear()
         self.slider.setValue(0)   # slider value 초기화
+        self.cl.init_figure()
 
     def init_mp4_ui(self):
-        self.timer = QTimer()
-        self.cl.img_show(self.dm.image, init=True)
 
-        if self.dm.frame_label_check(self.dm.frame_number):
-            self.cl.label_clicked(self.dm.frame_number)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.updateFrame)
+        self.timer_active = False
+        # self.timer = self.canvas.new_timer(
+        #     interval=16, callbacks=[self.updateFrame])  # 60FPS
+        # print(dir(self.timer))
+        self.cl.frame_show(frame=self.dm.get_image())
+
+        if self.dm.frame_label_check(0):
+            self.cl.label_clicked(0)
 
         # slider 설정
-        self.slider.setMaximum(dm.total_frame - 1)
+        self.slider.setMaximum(self.dm.get_total_frame_number() - 1)
         self.slider.setTickPosition(
             QSlider.TicksBelow)  # 눈금 위치 설정 (아래쪽)
         self.slider.setTickInterval(10)  # 눈금 간격 설정
@@ -141,53 +129,37 @@ class Gui(QMainWindow):
         # frame_label_dict에 있는 label 정보 버튼에 반영하기
         # open한 파일에 이미 저장되어 있는 label button 활성화하는 함수
         all_labels = self.dm.load_all_label()
-
         for label_name in self.buttons:
-            temp_label_buttons = self.buttons[label_name]
             if label_name in all_labels:
-                temp_label_buttons[0].setStyleSheet(style.BOLD_LABEL_BUTTON)
-                temp_label_buttons[1].setStyleSheet(style.BOLD_GO_BUTTON)
+                self.activate_buttons(label_name)
 
         self.label_layout.update()
         self.set_frame_label()
 
+    def start_timer(self):
+        if not self.timer_active:
+            self.timer_active = True
+            self.timer.start(16)
+
+    def stop_timer(self):
+        if self.timer_active:
+            self.timer_active = False
+            self.timer.stop()
+
     def label_button_clicked(self, label):
-        button_list = self.buttons[label]
-        # print(f"self.buttons : {self.buttons}")
-        button_list[0].setStyleSheet(style.BOLD_LABEL_BUTTON)
-        button_list[1].setStyleSheet(style.BOLD_GO_BUTTON)
-
-        for frame in self.dm.frame_label_dict:
-            frame_labels = self.dm.frame_label_check(frame)
-            if frame_labels and label in frame_labels:
-                self.dm.delete_label(label, frame)
-                self.cl.erase_annotation(label)
-
-        self.cl.is_tracking = False
-
-        if self.cl.annotation_mode == "line":
-            self.draw_straight_line(label)
-        else:
+        self.activate_buttons(label)
+        if self.cl.label_button_clicked(label):
             self.draw_rectangle(label)
 
     def go_button_clicked(self, label):
-        found_label = False
-
-        for frame in self.dm.frame_label_dict:
-            labels = self.dm.frame_label_check(frame)
-            if labels and label in labels:
-                first_frame = frame
-                found_label = True
-                break
-
-        if found_label:
-            self.frame_label_show(first_frame, label)
+        found, frame = self.dm.get_first_frame(label)
+        if found:
+            self.frame_label_show(frame, label)
 
     def frame_label_show(self, frame, label):
         # go 버튼 클릭시 frame값을 전달받고 이동 후 선택된 label은 두껍게 보여짐
         self.setCursor(Qt.ArrowCursor)
         if self.dm.file_mode == "mp4":
-            self.dm.frame_number = frame
             self.slider.setValue(frame)
 
         self.cl.label_clicked(frame, label)
@@ -200,14 +172,22 @@ class Gui(QMainWindow):
             button[1].setStyleSheet(style.NORMAL_GO_BUTTON)
         self.label_layout.update()
 
-    def disable_label_button(self, _label_name):
+    def deactivate_buttons(self, _label_name):
         # 특정 label 버튼 볼드체 풀기 (비활성화)
         if _label_name in self.buttons:
             button_list = self.buttons[_label_name]
-            button_list[0].setStyleSheet(
-                "color: gray; font-weight: normal; height: 30px; width: 120px;")
-            button_list[1].setStyleSheet(
-                "color: gray; font-weight: normal; height: 30px; width: 50px;")
+            button_list[0].setStyleSheet(style.NORMANL_LABEL_BUTTON)
+            button_list[1].setStyleSheet(style.NORMANL_GO_BUTTON)
+        else:
+            print(f"{_label_name} 라벨에 대한 버튼을 찾을 수 없음")
+        self.label_layout.update()
+
+    def activate_buttons(self, _label_name):
+        # 특정 label 버튼 볼드체 풀기 (비활성화)
+        if _label_name in self.buttons:
+            button_list = self.buttons[_label_name]
+            button_list[0].setStyleSheet(style.NORMAL_LABEL_BUTTON)
+            button_list[1].setStyleSheet(style.NORMAL_GO_BUTTON)
         else:
             print(f"{_label_name} 라벨에 대한 버튼을 찾을 수 없음")
         self.label_layout.update()
@@ -219,68 +199,37 @@ class Gui(QMainWindow):
 
     def sliderValueChanged(self, value):
         # 슬라이더 값에 따라 frame 보여짐
-        if not self.timer.isActive():    # 영상 재생 중인 경우
-            self.dm.frame_number = value
-            self.dm.video_player.set(
-                cv2.CAP_PROP_POS_FRAMES, self.dm.frame_number)
+        self.dm.set_frame(value)
+        if not self.timer_active:    # 영상 재생 중인 경우
             self.updateFrame()
-        elif self.timer.isActive() and value != self.dm.frame_number:
-            # 영상이 정지 중이거나 사용자가 slider value를 바꾼 경우
-            self.dm.frame_number = value
-            self.dm.video_player.set(
-                cv2.CAP_PROP_POS_FRAMES, self.dm.frame_number)
+        # 영상이 정지 중이거나 사용자가 slider value를 바꾼 경우
 
     def playButtonClicked(self):
         # 영상 재생 버튼의 함수
-        if not self.timer:    # timer 없으면 새로 생성하고 updateFrame을 callback으로 등록
-            self.timer = self.canvas.new_timer(interval=16)  # 60FPS
-            # self.timer.add_callback(self.updateFrame)
-
-        if not self.timer.isActive():   # 재생 시작
+        if not self.timer_active:   # 재생 시작
             self.play_button.setText("Pause")
-            self.timer.start()
-            self.timer.timeout.connect(self.updateFrame)
-            self.timer.start(16)
+            self.start_timer()
         else:    # 영상 정지
             self.play_button.setText("Play")
-            self.timer.timeout.disconnect(self.updateFrame)
-            self.set_frame_label()   # 현재 frame 상태 화면에 update
-            self.timer.stop()
-            self.dm.frame_number = int(
-                self.dm.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
+            self.stop_timer()
 
     def updateFrame(self):
         # frame update
-        prev_frame = copy.deepcopy(self.dm.image)
-        ret, frame = self.dm.video_player.read()
+        ret, frame_number = self.cl.update_frame()
         if ret:
-            self.dm.frame_number = int(
-                self.dm.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
             self.set_frame_label()  # 현재 frame 상태 화면에 update
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            self.cl.img_show(rgb_frame, clear=True)
-            self.dm.image = rgb_frame
-            # frame에 라벨이 존재하면 라벨을 보여줍니다.
-            if self.is_tracking:
-                self.cl.init_object_tracking(prev_frame, rgb_frame)
-            if self.dm.frame_number in self.dm.frame_label_dict:
-                self.cl.label_clicked(self.dm.frame_number)
-
-            if self.timer.isActive():   # 영상 재생 중
-                self.slider.setValue(self.dm.frame_number)
-
-        print("update Frame 호출, 현재 frame: ", self.dm.frame_number)
+            if self.timer_active:   # 영상 재생 중
+                self.slider.setValue(frame_number)
 
     def selector(self):
         self.setCursor(Qt.ArrowCursor)
         self.cl.init_selector("selector")
 
     def draw_rectangle(self, label=None):
-        if label or self.cl.selector_mode == "drawing":
+        if label:
             self.setCursor(Qt.CrossCursor)
             self.cl.init_draw_mode("rectangle", label)
         else:
-            self.cl.annotation_mode = "rectangle"
             QMessageBox.information(
                 self, 'Message', 'Click label button before drawing')
 
@@ -296,19 +245,20 @@ class Gui(QMainWindow):
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
             # self.disable_total_label()    # label 버튼 비활성화
             for label_name in self.dm.frame_label_check(self.dm.frame_number):
+                self.deactivate_buttons(label_name)
                 self.cl.delete_label(label_name)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_T:
-            print("t 키 눌림")
-            if not self.is_tracking:
-                self.is_tracking = True
-                self.playButtonClicked()
-            else:
-                self.is_tracking = False
-                self.playButtonClicked()
+        # if event.key() == Qt.Key_T:
+        #     print("t 키 눌림")
+        #     if not self.is_tracking:
+        #         self.is_tracking = True
+        #         self.playButtonClicked()
+        #     else:
+        #         self.is_tracking = False
+        #         self.playButtonClicked()
 
-        elif event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
             self.cl.remove_annotation()
 
@@ -341,8 +291,7 @@ class Gui(QMainWindow):
             button_layout.addWidget(go_button)
             self.label_layout.addLayout(button_layout)
 
-            label_go_buttons = [label_button, go_button]
-            self.buttons[label_name] = label_go_buttons
+            self.buttons[label_name] = [label_button, go_button]
 
     def set_gui_layout(self):
         grid_box = QGridLayout(self.main_widget)
@@ -366,9 +315,8 @@ class Gui(QMainWindow):
         func = [self.open_file, self.save, self.selector,
                 self.draw_rectangle, self.delete, self.delete_all]
         icon_dir = 'gui/icon'
-        pack = zip(actions, func)
-        for x in pack:
+        for act, func in zip(actions, func):
             action = QAction(
-                QIcon(f'{icon_dir}/{x[0]}_icon.png'), x[0].title(), self)
-            action.triggered.connect(x[1])
+                QIcon(f'{icon_dir}/{act}_icon.png'), act.title(), self)
+            action.triggered.connect(func)
             toolbar.addAction(action)

@@ -1,4 +1,5 @@
 import cv2
+from copy import deepcopy
 # import numpy as np
 
 
@@ -8,6 +9,8 @@ class VideoManger():
 
         self.frame = None
         self.frame_number = 0
+
+        self.video_status = None
 
         self.total_frame = 0
         self.frame_width = 0
@@ -41,3 +44,21 @@ class VideoManger():
 
     def get_frame_label_str(self):
         return f"{self.frame_number} / {int(self.total_frame) - 1}"
+
+    def updateFrame(self):
+        # frame update
+        prev_frame = deepcopy(self.frame)
+        ret, frame = self.video_player.read()
+        if ret:
+            self.frame_number = int(
+                self.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.frame = rgb_frame
+            print("update Frame 호출, 현재 frame: ", self.frame_number)
+
+        return ret, self.frame_number, prev_frame, rgb_frame
+
+    def set_frame(self, value):
+        self.frame_number = value
+        self.video_player.set(
+            cv2.CAP_PROP_POS_FRAMES, value)
