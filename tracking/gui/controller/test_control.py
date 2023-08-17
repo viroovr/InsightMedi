@@ -505,7 +505,7 @@ class Controller():
                         print("화면 벗어남")
                         self.stop_playing()
                         return 
-                    if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7, 50):
+                    if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.6, 50):
                         # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                         # label = self.annotation[0].get_label()
                         color = bbox[i][2]
@@ -568,7 +568,7 @@ class Controller():
 
             return 1 - score
     
-    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.5):
+    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.6):
         # roi_x = bbox[0]
         # roi_y = bbox[1]
         roi_width = bbox[2]

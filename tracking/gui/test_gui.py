@@ -79,6 +79,9 @@ class MyWindow(QMainWindow):
         self.play_button.setFocusPolicy(Qt.NoFocus)
         self.video_status = None
 
+        self.tracking_button = QPushButton("Tracking")
+        self.tracking_button.setStyleSheet("color: lightgray; height: 20px")
+
         # GUI Layout
         grid_box = QGridLayout(self.main_widget)
         grid_box.setColumnStretch(0, 4)   # column 0 width 4
@@ -94,6 +97,7 @@ class MyWindow(QMainWindow):
         # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
+        grid_box.addWidget(self.tracking_button, 2, 1)
 
         # 창 중앙 정렬
         screen_geometry = QApplication.desktop().availableGeometry()
@@ -204,6 +208,7 @@ class MyWindow(QMainWindow):
                 self.slider.setTickInterval(10)  # 눈금 간격 설정
                 self.slider.valueChanged.connect(self.sliderValueChanged)
                 self.play_button.clicked.connect(self.playButtonClicked)
+                self.tracking_button.clicked.connect(self.trackingButtonClicked)
 
             else:    # viewer에 호환되지 않는 확장자 파일
                 print("Not accepted file format")
@@ -341,6 +346,14 @@ class MyWindow(QMainWindow):
             self.timer.stop()
             self.dd.frame_number = int(
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
+    
+    def trackingButtonClicked(self):
+        if not self.is_tracking:
+            self.is_tracking = True
+            self.playButtonClicked()
+        else:
+            self.is_tracking = False
+            self.playButtonClicked()
     
     def updateFrame(self):
         # frame update
