@@ -500,9 +500,8 @@ class Controller():
                 for i, new_bbox in enumerate(new_bboxes):
                     # 새로운 라벨 저장을 위해 필요한 데이터들
                     # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
-                    bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
-                        new_bbox[2]), int(new_bbox[3]))
-                    if not self.is_roi_within_bounds(bbox_, self.dd.frame_width, self.dd.frame_height):
+                    bbox_ = self.refine_bbox(new_bbox, self.dd.frame_width, self.dd.frame_height)
+                    if not self.is_roi_within_bounds(new_bbox, bbox_, self.dd.frame_width, self.dd.frame_height):
                         print("화면 벗어남")
                         self.stop_playing()
                         return 
@@ -569,21 +568,40 @@ class Controller():
 
             return 1 - score
     
-    def is_roi_within_bounds(self, bbox, screen_width, screen_height, max_ratio=0.8):
-        roi_x = bbox[0][0]
-        roi_y = bbox[0][1]
-        roi_width = bbox[1]
-        roi_height = bbox[2]
-        roi_right = roi_x + roi_width
-        roi_bottom = roi_y + roi_height
+    def is_roi_within_bounds(self, bbox, refined_bbox, screen_width, screen_height, max_ratio=0.6):
+        # roi_x = bbox[0]
+        # roi_y = bbox[1]
+        roi_width = bbox[2]
+        roi_height = bbox[3]
+        # roi_right = roi_x + roi_width
+        # roi_bottom = roi_y + roi_height
         # print(bbox)
         # print(roi_right, roi_bottom)
-
-        if roi_x < 0 or roi_y < 0 or roi_right > screen_width or roi_bottom > screen_height:
-            return False
+        # print("roix",roi_x, "roiy", roi_y)
+        refined_roi_width = refined_bbox[1]
+        refined_roi_height = refined_bbox[2]
 
         roi_area = roi_width * roi_height
-        screen_area = screen_width * screen_height
-        roi_ratio = roi_area / screen_area
+        refined_roi_area = refined_roi_width * refined_roi_height
+        roi_ratio = refined_roi_area / roi_area
+        print("roi ratio:", roi_ratio)
 
-        return roi_ratio <= max_ratio
+        return roi_ratio >= max_ratio
+
+        # if roi_x < 0 or roi_y < 0 or roi_right > screen_width or roi_bottom > screen_height:
+        #     return False
+ 
+        # roi_area = roi_width * roi_height
+        # screen_area = screen_width * screen_height
+        # roi_ratio = roi_area / screen_area
+
+        # return roi_ratio <= max_ratio
+
+    def refine_bbox(self, bbox, screen_width, screen_height):
+        x = max(int(bbox[0]), 0)
+        y = max(int(bbox[1]), 0)
+        w = min(int(bbox[2]), screen_width - x)
+        h = min(int(bbox[3]), screen_height - y)
+        print('refined:',x,y,w,h)
+
+        return ((x,y),w,h)
