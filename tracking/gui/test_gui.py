@@ -424,7 +424,10 @@ class MyWindow(QMainWindow):
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
-            self.cl.select_off_all()
+            if self.cl.annotation:
+                self.cl.select_off_all()
+            if self.cl.selector_mode != "selector":
+                self.selector()
 
         if event.key() == Qt.Key_Space:
             print("space bar 눌림")
