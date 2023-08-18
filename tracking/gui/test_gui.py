@@ -79,8 +79,17 @@ class MyWindow(QMainWindow):
         self.play_button.setFocusPolicy(Qt.NoFocus)
         self.video_status = None
 
+        # tracking layout
+        self.tracking_layout = QHBoxLayout()
         self.tracking_button = QPushButton("Tracking")
         self.tracking_button.setStyleSheet("color: lightgray; height: 20px")
+        self.tracking_layout.addWidget(self.tracking_button)
+
+        # tracking textbox
+        self.tracking_textbox = QLineEdit()
+        self.tracking_textbox.setValidator(QIntValidator(1, 100, self))
+        self.tracking_textbox.setStyleSheet("color: lightgray;")
+        self.tracking_layout.addWidget(self.tracking_textbox)
 
         # GUI Layout
         grid_box = QGridLayout(self.main_widget)
@@ -97,7 +106,7 @@ class MyWindow(QMainWindow):
         # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
-        grid_box.addWidget(self.tracking_button, 2, 1)
+        grid_box.addLayout(self.tracking_layout, 2, 1)
 
         # 창 중앙 정렬
         screen_geometry = QApplication.desktop().availableGeometry()
@@ -316,16 +325,17 @@ class MyWindow(QMainWindow):
 
     def sliderValueChanged(self, value):
         # 슬라이더 값에 따라 frame 보여짐
-        if not self.timer.isActive():    # 영상 재생 중인 경우
-            self.dd.frame_number = value
-            self.dd.video_player.set(
-                cv2.CAP_PROP_POS_FRAMES, self.dd.frame_number)
-            self.updateFrame()
-        elif self.timer.isActive() and value != self.dd.frame_number:
+        # if self.timer.isActive():    # 영상 재생 중인 경우
+        #     self.dd.frame_number = value
+        #     self.dd.video_player.set(
+        #         cv2.CAP_PROP_POS_FRAMES, self.dd.frame_number)
+        #     print("영상 재생 중에 update frame!!!!!!!!!!!!-------")
+        if not self.timer.isActive() and value != self.dd.frame_number:
             # 영상이 정지 중이거나 사용자가 slider value를 바꾼 경우
             self.dd.frame_number = value
             self.dd.video_player.set(
                 cv2.CAP_PROP_POS_FRAMES, self.dd.frame_number)
+            self.updateFrame()
 
     def playButtonClicked(self):
         # 영상 재생 버튼의 함수
@@ -348,13 +358,31 @@ class MyWindow(QMainWindow):
                 self.dd.video_player.get(cv2.CAP_PROP_POS_FRAMES)) - 1
     
     def trackingButtonClicked(self):
-        if not self.is_tracking:
-            self.is_tracking = True
-            self.playButtonClicked()
+        input_frame_value = int(self.tracking_textbox.text())
+        print("object tracking 실행될 frame 수", input_frame_value)
+
+        if input_frame_value <= 0:
+            self.tracking_textbox.setText(0)
+
+        elif input_frame_value > (self.dd.total_frame-1) - self.dd.frame_number:
+            self.tracking_textbox.setText((self.dd.total_frame-1) - self.dd.frame_number)
+        
         else:
-            self.is_tracking = False
-            self.playButtonClicked()
-    
+            if not self.is_tracking:
+                self.is_tracking = True
+                self.update_object_tracking(input_frame_value)
+        
+    def update_object_tracking(self, input_frame_value):
+        for _ in range(input_frame_value):
+            print(_)
+            print("실행되고 있냐...",self.is_tracking)
+            if self.is_tracking:
+                self.updateFrame()
+                self.slider.setValue(self.dd.frame_number)
+                QApplication.processEvents()
+            else:
+                break
+
     def updateFrame(self):
         # frame update
         prev_frame = copy.deepcopy(self.dd.image)
@@ -376,7 +404,7 @@ class MyWindow(QMainWindow):
             if self.timer.isActive():   # 영상 재생 중
                 self.slider.setValue(self.dd.frame_number)
 
-                if self.dd.frame_number == self.dd.total_frame:
+                if self.dd.frame_number == self.dd.total_frame - 1:
                     self.playButtonClicked()
 
         print("update Frame 호출, 현재 frame: ", self.dd.frame_number)
@@ -424,9 +452,9 @@ class MyWindow(QMainWindow):
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
-            if self.cl.annotation:
+            if self.cl.annotation:   # 다중 선택 모두 해제
                 self.cl.select_off_all()
-            if self.cl.selector_mode != "selector":
+            if self.cl.selector_mode != "selector":    # selector 모드로 돌아감
                 self.selector()
 
         if event.key() == Qt.Key_Space:

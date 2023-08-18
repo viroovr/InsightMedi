@@ -465,13 +465,14 @@ class Controller():
                     # print(f"{label}의 bbox:", bbox)
             print("현재 프레임의 bbox들 좌표:", bbox)
         else:
+            self.is_tracking = False
             self.stop_playing()
             print("bbox error")
         return bbox
 
     def stop_playing(self):
         self.gui.is_tracking = False
-        self.gui.playButtonClicked()
+        #self.gui.playButtonClicked()
     
     def object_tracking(self, oldframe, newframe, bbox, init=False):
         """ 주어진 frame이미지에 tracking한 물체에 bbox를 그리고 정보를 저장합니다.
