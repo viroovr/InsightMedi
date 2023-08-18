@@ -17,6 +17,7 @@ class TrackerManager():
         # object tracking이 가능한 상태인 지 확인하는 함수
 
         bbox = self.get_bbox()
+        print("bbox 확인", bbox)
         if bbox and self.is_tracking:
             if self.is_init:
                 # object tracking 한 결과 나온 라벨링 그리기
@@ -84,45 +85,53 @@ class TrackerManager():
         ok, new_bboxes = self.multitracker.update(newframe)
 
         if ok:
-            print(new_bboxes)
-            for i, new_bbox in enumerate(new_bboxes):
-                # 새로운 라벨 저장을 위해 필요한 데이터들
-                bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
-                    new_bbox[2]), int(new_bbox[3]))
-                if not self.is_roi_within_bounds(bbox_, self.dd.get_mp4_info()):
-                    print(f"{bbox[i][0]} box가 화면 벗어남")
-                    self.start_tracking()
-                    self.dm.pop_annotation(bbox[i][0])
-                    continue
+            # print(new_bboxes)
+            self.dd.check_log_path()
+            with open(f"{self.dd.label_dir}/log/bbox_log.txt", "a") as log_file:
+                for i, new_bbox in enumerate(new_bboxes):
+                    # 새로운 라벨 저장을 위해 필요한 데이터들
+                    bbox_ = self.refine_bbox(new_bbox, self.dd.get_mp4_info())
+                    if not self.is_roi_within_bounds(new_bbox, bbox_):
+                        print(f"{bbox[i][0]} box가 화면 벗어남")
+                        self.start_tracking()
+                        self.dm.pop_annotation(bbox[i][0])
+                        continue
 
-                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.3):
-                    # print(self.dd.frame_label_check(self.dd.frame_number - 1))
-                    color = bbox[i][2]
-                    label = bbox[i][0]
-                    print(f"new_bbox : {bbox_}, {color}, {label}")
-                    # 라벨 그리기 및 저장
-                    self.dm.draw_rectangle(label, bbox_, color, isSelect=True)
-                    self.dd.add_label('rectangle', label, bbox_, color,
-                                      frame_number=self.dd.get_frame_number())
-                else:
-                    print("유사도 떨어짐 감지")
-                    self.start_tracking()
+                    if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.6, 50):
+                        # print(self.dd.frame_label_check(self.dd.frame_number - 1))
+                        color = bbox[i][2]
+                        label = bbox[i][0]
+                        log_file.write(f"Frame: {self.dd.get_frame_number()}, Label: {label}, Bbox: {new_bbox}\n")
+                        print(f"new_bbox : {bbox_}, {color}, {label}")
+                        # 라벨 그리기 및 저장
+                        self.dm.draw_rectangle(label, bbox_, color, isSelect=True)
+                        self.dd.add_label('rectangle', label, bbox_, color,
+                                        frame_number=self.dd.get_frame_number())
+                    else:
+                        print("유사도 떨어짐 감지")
+                        self.start_tracking()
                     self.dm.pop_annotation(bbox[i][0])
         else:
             self.stop_tracking()
             print("object tracking failed")
 
-    def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
+    def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold, coords_threshold):
         # print(f"old : {oldbox}, new: {newbox}")
         # print(np.array_equal(oldframe, newframe))
         roi1 = oldframe[oldbox[1]:oldbox[1] +
                         oldbox[3], oldbox[0]:oldbox[0] + oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
                         newbox[2], newbox[0][0]:newbox[0][0] + newbox[1]]
-        similarity = self.similarity_score('hsv', roi1, roi2)
-
-        if similarity <= similarity_threshold:
-            return False
+        
+        if abs(oldbox[0] - newbox[0][0]) > coords_threshold or abs(oldbox[1] - newbox[0][1]) > coords_threshold:
+            similarity = self.similarity_score('hsv', roi1, roi2)
+            
+            if similarity <= similarity_threshold:
+                print("label이 튀고 유사도가 낮음", similarity)
+                return False
+            else:
+                print("label 튀었지만 유사도 높음", similarity)
+                return True
         else:
             return True
 
@@ -148,17 +157,25 @@ class TrackerManager():
 
             return 1 - score
 
-    def is_roi_within_bounds(self, bbox, frame_info, max_ratio=0.8):
-        screen_width, screen_height = frame_info
-        (roi_x, roi_y), roi_width, roi_height = bbox
-        roi_right = roi_x + roi_width
-        roi_bottom = roi_y + roi_height
+    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.6):
+        roi_width = bbox[2]
+        roi_height = bbox[3]
 
-        if roi_x < 0 or roi_y < 0 or roi_right > screen_width or roi_bottom > screen_height:
-            return False
+        refined_roi_width = refined_bbox[1]
+        refined_roi_height = refined_bbox[2]
 
         roi_area = roi_width * roi_height
-        screen_area = screen_width * screen_height
-        roi_ratio = roi_area / screen_area
+        refined_roi_area = refined_roi_width * refined_roi_height
+        roi_ratio = refined_roi_area / roi_area
 
-        return roi_ratio <= max_ratio
+        return roi_ratio >= max_ratio
+    
+    def refine_bbox(self, bbox, frame_info):
+        x = max(int(bbox[0]), 0)
+        y = max(int(bbox[1]), 0)
+        w = min(int(bbox[2]), frame_info[0] - x)
+        h = min(int(bbox[3]), frame_info[1] - y)
+
+        print('refined bbox coords:', ((x, y), w, h))
+
+        return ((x, y), w, h)

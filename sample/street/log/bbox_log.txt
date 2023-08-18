@@ -1,0 +1,6 @@
+Frame: 1, Label: label 7, Bbox: [251. 278. 157. 288.]
+Frame: 1, Label: label 6, Bbox: [244. 272. 159. 299.]
+Frame: 1, Label: label 7, Bbox: [608. 174. 130. 190.]
+Frame: 1, Label: label 7, Bbox: [608. 174. 130. 190.]
+Frame: 2, Label: label 7, Bbox: [608. 175. 130. 190.]
+Frame: 1, Label: label 6, Bbox: [602. 166. 118. 200.]

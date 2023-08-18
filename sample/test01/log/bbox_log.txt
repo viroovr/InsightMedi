@@ -1,0 +1,4 @@
+Frame: 34, Label: label 8, Bbox: [510. 818. 542. 257.]
+Frame: 37, Label: label 8, Bbox: [489. 828. 571. 244.]
+Frame: 245, Label: label 8, Bbox: [ 88. 780. 741. 277.]
+Frame: 30, Label: label 8, Bbox: [626. 861. 351. 167.]
