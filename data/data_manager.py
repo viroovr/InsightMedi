@@ -111,8 +111,11 @@ class DataManager():
             (frame_width, frame_height)
         """
         return self.vm.get_mp4_info()
+
+    def get_tracking_num(self, text):
+        return self.vm.get_tracking_num(text)
     
     def check_log_path(self):
         log_path = f"{self.label_dir}/log"
-        if not os.path.exists(log_path):
-            os.mkdir(log_path)
+        os.makedirs(log_path, exist_ok=True)
+        return log_path

@@ -37,6 +37,35 @@ class Gui(QMainWindow):
         self.slider = QSlider(Qt.Horizontal)
         self.slider_layout.addWidget(self.slider)
 
+        # WW, WL label
+        self.windowing_layout = QHBoxLayout()
+
+        self.wl_label = QLabel("WL:")
+        self.wl_label.setFixedHeight(20)
+        self.wl_label.setStyleSheet(style.WINDOWING_LABEL)
+
+        self.ww_label = QLabel("WW:")
+        self.ww_label.setFixedHeight(20)
+        self.ww_label.setStyleSheet(style.WINDOWING_LABEL)
+
+        self.windowing_layout.addWidget(self.wl_label)
+        self.windowing_layout.addWidget(self.ww_label)
+
+        # Tool status label
+        self.tool_status_label = QLabel("Tool Status: None")
+        self.tool_status_label.setFixedHeight(20)
+        self.tool_status_label.setStyleSheet(style.STATUS_LABEL)
+
+        # status widget
+        self.status_widget = QWidget()
+        self.status_layout = QVBoxLayout()
+
+        self.status_layout.addLayout(self.windowing_layout)
+        self.status_layout.addWidget(self.tool_status_label)
+
+        self.status_widget.setLayout(self.status_layout)
+        self.status_widget.setStyleSheet(style.STATUS_WIDGET)
+
         # Frame label
         self.frame_label = QLabel("")
         self.frame_label.setStyleSheet(style.LIGHTFONT)
@@ -48,9 +77,18 @@ class Gui(QMainWindow):
         self.play_button.setFocusPolicy(Qt.NoFocus)
 
         # tracking button
+        self.tracking_layout = QHBoxLayout()
         self.tracking_button = QPushButton("Tracking")
         self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
         self.tracking_button.setFocusPolicy(Qt.NoFocus)
+        self.tracking_layout.addWidget(self.tracking_button)
+
+        # tracking textbox
+        self.tracking_textbox = QLineEdit()
+        self.tracking_textbox.setValidator(QIntValidator(1, 100, self))
+        self.tracking_textbox.setStyleSheet(style.LIGHTFONT)
+        self.tracking_layout.addWidget(self.tracking_textbox)
+
         self.tracking_active = False
 
         # timer
@@ -217,12 +255,13 @@ class Gui(QMainWindow):
 
     def sliderValueChanged(self, value):
         # 슬라이더 값에 따라 frame 보여짐
-        if not self.timer_active:    # 영상 재생 중인 경우
+        if not self.timer_active and self.dm.get_frame_number() != value:
+            # 영상이 정지 중이거나 사용자가 slider value를 바꾼 경우
             self.dm.set_frame(value)
             self.updateFrame()
-        elif self.timer_active and self.dm.get_frame_number() != value:
-            self.dm.set_frame(value)
-        # 영상이 정지 중이거나 사용자가 slider value를 바꾼 경우
+        # elif self.timer_active and self.dm.get_frame_number() != value:
+        #     # 영상 재생 중인 경우
+        #     self.dm.set_frame(value)
 
     def playButtonClicked(self):
         # 영상 재생 버튼의 함수
@@ -237,6 +276,8 @@ class Gui(QMainWindow):
 
     def updateFrame(self):
         # frame update
+        if self.dm.get_frame_number() == self.dm.get_total_frame_number() - 1:
+            self.playButtonClicked()
         ret, frame_number = self.cl.update_frame(self.tracking_active)
         if ret:
             self.set_frame_label()  # 현재 frame 상태 화면에 update
@@ -271,16 +312,30 @@ class Gui(QMainWindow):
                 self.cl.delete_label(label_name)
 
     def trackingClicked(self):
-        if not self.tracking_active:
+        input_frame_value = self.dm.get_tracking_num(self.tracking_textbox.text())
+        print("object tracking 실행될 frame 수", input_frame_value)
+        if not self.tracking_active and self.cl.get_annotation():
             self.cl.start_tracking_status()
             self.tracking_active = True
             self.tracking_button.setStyleSheet(style.START_TRACKING)
-            self.playButtonClicked()
+            self.update_object_tracking(input_frame_value)
         else:
             self.cl.stop_tracking_status()
             self.tracking_active = False
             self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
-            self.playButtonClicked()
+
+    def update_object_tracking(self, input_frame_value):
+        for _ in range(input_frame_value):
+            print("실행되고 있냐...", self.tracking_active)
+            if self.tracking_active:
+                self.updateFrame()
+                self.slider.setValue(self.dm.get_frame_number())
+                QApplication.processEvents()
+            else:
+                    self.cl.stop_tracking_status()
+                    self.tracking_active = False
+                    self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
+                    break
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
@@ -293,10 +348,10 @@ class Gui(QMainWindow):
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
-            if self.cl.annotation:   # 다중 선택 모두 해제
-                self.cl.select_off_all()
-            if self.cl.selector_mode != "selector":    # selector 모드로 돌아감
-                self.selector()
+            self.cl.select_off_all()
+            self.selector()
+            for label in self.buttons:
+                self.deactivate_button(label)
 
         if event.key() == Qt.Key_Space:
             print("space bar 눌림")
@@ -340,7 +395,7 @@ class Gui(QMainWindow):
         # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
-        grid_box.addWidget(self.tracking_button, 2, 1)
+        grid_box.addLayout(self.tracking_layout, 2, 1)
 
     def create_actions(self, toolbar):
         # Open file action

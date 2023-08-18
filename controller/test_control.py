@@ -24,7 +24,7 @@ class Controller():
 
     def init_selector(self, mode):
         self.dm.init_selector(mode)
-        
+
     def delete_label(self, label_name):
         """ 현재 프레임에서 label_name 데이터를 지웁니다."""
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
@@ -94,3 +94,6 @@ class Controller():
 
     def stop_tracking_status(self):
         self.tm.stop_tracking()
+
+    def get_annotation(self):
+        return self.dm.annotation
