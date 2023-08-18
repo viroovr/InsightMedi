@@ -309,10 +309,11 @@ class DrawManager():
 
     def get_current_annotation_info(self) -> List[Tuple]:
         ret = []
-        # print(self.annotation)
+        print(self.annotation)
         for an in self.annotation:
             if isinstance(an, Rectangle):
                 ret.append(get_ractangle_annotation_info(an))
+                print("ret 확인", ret)
 
         return ret
 

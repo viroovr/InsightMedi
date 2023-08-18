@@ -17,7 +17,6 @@ class TrackerManager():
         # object tracking이 가능한 상태인 지 확인하는 함수
 
         bbox = self.get_bbox()
-        print("bbox 확인", bbox)
         if bbox and self.is_tracking:
             if self.is_init:
                 # object tracking 한 결과 나온 라벨링 그리기
@@ -96,21 +95,20 @@ class TrackerManager():
                         self.start_tracking()
                         self.dm.pop_annotation(bbox[i][0])
                         continue
-
                     if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.6, 50):
                         # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                         color = bbox[i][2]
                         label = bbox[i][0]
-                        log_file.write(f"Frame: {self.dd.get_frame_number()}, Label: {label}, Bbox: {new_bbox}\n")
                         print(f"new_bbox : {bbox_}, {color}, {label}")
                         # 라벨 그리기 및 저장
                         self.dm.draw_rectangle(label, bbox_, color, isSelect=True)
                         self.dd.add_label('rectangle', label, bbox_, color,
                                         frame_number=self.dd.get_frame_number())
+                        log_file.write(f"Frame: {self.dd.get_frame_number()}, Label: {label}, Bbox: {new_bbox}\n")
                     else:
                         print("유사도 떨어짐 감지")
                         self.start_tracking()
-                    self.dm.pop_annotation(bbox[i][0])
+                        self.dm.pop_annotation(bbox[i][0])
         else:
             self.stop_tracking()
             print("object tracking failed")
@@ -157,7 +155,7 @@ class TrackerManager():
 
             return 1 - score
 
-    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.6):
+    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.7):
         roi_width = bbox[2]
         roi_height = bbox[3]
 
