@@ -300,11 +300,7 @@ class DrawManager():
         if clear:
             self.frame_ax.clear()
         self.frame_ax.imshow(frame, cmap=cmap)
-        self.canvas.draw()
-
-    def img_show(self, annotation, clear=False):
-        if clear:
-            self.annotation_ax.clear()
+        self.frame_ax.axis("off")
         self.canvas.draw()
 
     def get_current_annotation_info(self) -> List[Tuple]:

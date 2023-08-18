@@ -1,7 +1,7 @@
 import os
 from typing import List, Tuple
 import matplotlib
-from data.video_manager import VideoManger
+from data.video_manager import VideoManager
 from data.label_manager import LabelManager
 from data.dcm_manager import DcmManager
 matplotlib.use("Qt5Agg")
@@ -15,7 +15,7 @@ class DataManager():
         self.file_mode = None
         self.label_dir = None
 
-        self.vm = VideoManger()
+        self.vm = VideoManager()
         self.dm = DcmManager()
         self.lm = LabelManager()
 
@@ -111,3 +111,6 @@ class DataManager():
             (frame_width, frame_height)
         """
         return self.vm.get_mp4_info()
+
+    def get_tracking_num(self, text):
+        return self.vm.get_tracking_num(text)

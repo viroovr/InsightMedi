@@ -3,7 +3,7 @@ from copy import deepcopy
 # import numpy as np
 
 
-class VideoManger():
+class VideoManager():
     def __init__(self) -> None:
         self.video_player = None
 
@@ -64,3 +64,13 @@ class VideoManger():
 
     def get_mp4_info(self):
         return self.frame_width, self.frame_height
+    
+    def get_tracking_num(self, text):
+        input_frame_value = int(text) if text.isdigit() else -1
+        tf = self.total_frame
+        t = self.frame_number
+        if input_frame_value <= 0 or input_frame_value > tf - 1 - t:
+            input_frame_value = tf - t - 1
+
+        return input_frame_value
+        
