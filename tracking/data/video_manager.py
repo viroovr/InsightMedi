@@ -60,5 +60,7 @@ class VideoManger():
 
     def set_frame(self, value):
         self.frame_number = value
-        self.video_player.set(
-            cv2.CAP_PROP_POS_FRAMES, value)
+        self.video_player.set(cv2.CAP_PROP_POS_FRAMES, value)
+
+    def get_mp4_info(self):
+        return self.frame_width, self.frame_height

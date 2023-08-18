@@ -39,3 +39,11 @@ def get_rectangle_coords(start, end):
     x = min(start[0], end[0])
     y = min(start[1], end[1])
     return (x, y), width, height
+
+
+def get_ractangle_annotation_info(an):
+    """
+    Retruns:
+        (라벨명, (x, y), w, h, 컬러값)
+    """
+    return (an.get_label(), an.xy, an.get_width(), an.get_height(), get_color(an))

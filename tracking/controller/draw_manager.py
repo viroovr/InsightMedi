@@ -3,12 +3,14 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from controller.util_annotation import *
 from matplotlib.patches import Rectangle
 from data.data_manager import DataManager
+from typing import List, Tuple
 
 
 class DrawManager():
     def __init__(self, canvas: FigureCanvas, get) -> None:
         self.get = get
         self.dd: DataManager = self.get('data')
+        self.gui = self.get('gui')
         self.annotation_mode = None
         self.annotation = []
         self.selector_mode = None
@@ -24,14 +26,19 @@ class DrawManager():
         self.drag = []
 
     def init_figure(self):
-        self.annotation_ax = self.canvas.figure.add_subplot(111, aspect='auto', zorder=1, facecolor="#3A3A3A")
-        self.annotation_ax.patch.set_facecolor("#3A3A3A")
-        self.annotation_ax.axis("off")
-
-        self.frame_ax = self.canvas.figure.add_subplot(111, aspect='auto', facecolor="#3A3A3A")
+        # print(dir(self.canvas.figure))
+        self.frame_ax = self.canvas.figure.add_subplot(
+            111, aspect='auto', facecolor="#3A3A3A")
         self.frame_ax.axis("off")
 
+        self.annotation_ax = self.canvas.figure.add_subplot(
+            self.frame_ax, aspect='auto', zorder=1, facecolor="#3A3A3A")
+        self.annotation_ax.axis("off")
+
+    def get_annotation(self):
+        return self.annotation()
     # mpl connect & disconnect
+
     def set_mpl_connect(self, *args):
         """args순서 : button_press_event, motion_notify_event, button_release_event, pick_event"""
         self.set_mpl_disconnect()
@@ -155,7 +162,7 @@ class DrawManager():
             if self.start and self.end:
                 self.draw_annotation()
                 self.add_annotation(self.label_name, self.color)
-                self.init_selector("selector")
+                self.gui.selector()
 
     def draw_annotation(self):
         if self.end is None or self.start is None or self.selector_mode != "drawing":
@@ -165,15 +172,14 @@ class DrawManager():
             self.current_annotation.remove()
 
         if self.annotation_mode == "rectangle":
-            self.current_annotation = self.annotation_ax.add_patch(
-                Rectangle(*get_rectangle_coords(self.start, self.end), fill=False, picker=True,
-                          label=self.label_name, edgecolor=self.color))
+            self.current_annotation = self.draw_rectangle(
+                self.label_name, get_rectangle_coords(self.start, self.end), color=self.color)
 
         set_edge_thick(self.current_annotation, line_width=3)
         self.canvas.draw()
 
     def add_annotation(self, label_name, color):
-        print(self.current_annotation)
+        # print(self.current_annotation)
         self.annotation.append(self.current_annotation)
         self.dd.add_label("rectangle", label_name,
                           get_rectangle_coords(self.start, self.end), color)
@@ -190,7 +196,7 @@ class DrawManager():
         if isOff:
             self.select_off_all()
         self.annotation.append(annotation)
-        self.set_edge_thick(annotation, line_width=3)
+        set_edge_thick(annotation, line_width=3)
         self.canvas.draw()
 
     def select_off_all(self):
@@ -212,26 +218,30 @@ class DrawManager():
             return
         for an in self.annotation:
             an.remove()
-            self.delete_label(an.get_label())
+            self.dd.delete_label(an.get_label())
         self.annotation.clear()
         self.canvas.draw()
 
-    def erase_annotation(self, _label_name):
+    def erase_annotation(self, label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다.
 
         Args:
             _label_name(string): 주어진 라벨이름의 annotation을 제거합니다.
         """
-        (patch.remove()
-         for patch in self.annotation_ax.patches if patch.get_label() == _label_name)
-        (patch.remove()
-         for patch in self.annotation_ax.lines if patch.get_label() == _label_name)
+        def remove_patches_by_label(patches):
+            for patch in patches[:]:
+                if patch.get_label() == label_name:
+                    patch.remove()
+
+        remove_patches_by_label(self.annotation_ax.patches)
+        remove_patches_by_label(self.annotation_ax.lines)
         self.canvas.draw()
 
     def erase_all_annotation(self):
         """현재 self.ax에 있는 모든 patch들과 선들을 제거합니다."""
-        (patch.remove() for patch in self.annotation_ax.patches)
-        (patch.remove() for patch in self.annotation_ax.lines)
+        for patch in self.annotation_ax.patches + self.annotation_ax.lines:
+            patch.remove()
+
         self.annotation.clear()
         self.canvas.draw()
 
@@ -240,38 +250,39 @@ class DrawManager():
             an for an in self.annotation if an.get_label() != label_name]
 
     # modify functions
-    def modify_label_data(self, ar):
+    def modify_label_data(self, an):
         """
         변경된 객체의 좌표값들을 읽어와 self.dd에 저장합니다.
 
-        Args:
-            ar(annotation): annotation 객체를 인자로 주어야 합니다.
+        angs:
+            an(annotation): annotation 객체를 인자로 주어야 합니다.
         """
-        ret_points = (ar.get_xy(), ar.get_width(), ar.get_height())
-        color = get_color(ar)
-        self.dd.modify_label_data(ar.get_label(), ret_points, color)
+        label, (x, y), w, h, color = get_ractangle_annotation_info(an)
+        self.dd.modify_label_data(label, ((x, y), w, h), color)
 
-    def go_to_frame(self, frame, _label_name=[]):
+    def go_clicked(self, frame, label_name=[]):
         """
-        go버튼 클릭 시 모든 annotation을 지우고 해당 frame으로 이동한 뒤 캔버스에 plot을 그려줍니다.
+        go버튼 클릭 시 모든 annotation을 지우고 해당 frame의 annotation을 캔버스에 그려줍니다.
 
         Args:
-            _label_name(string or empty list): 해당 라벨의 두께를 두껍게 합니다.
+            label_name(string or empty list): 해당 라벨의 두께를 두껍게 합니다.
                                         empty list일 경우, self.annotation 라벨들의 강조를 유지합니다.
         """
-        if not _label_name and self.annotation:
-            _label_name = [an.get_label() for an in self.annotation]
-            # print(f"{sys._getframe(0).f_code.co_name}: _label_name : {_label_name}")
+        if not label_name and self.annotation:
+            label_name = [an.get_label() for an in self.annotation]
+            # print(f"{sys._getframe(0).f_code.co_name}: label_name : {label_name}")
         self.erase_all_annotation()
         annotations_to_select = []
         info = self.dd.get_frame_label_info(frame)
+        if not info:
+            return
         for drawing_type, label, coords, color in info:
             if drawing_type == "rectangle":
                 annotation = Rectangle(coords[0], coords[1], coords[2], fill=False,
                                        picker=True, label=label, edgecolor=color)
                 self.annotation_ax.add_patch(annotation)
 
-            if label in _label_name:
+            if label in label_name:
                 annotations_to_select.append(annotation)
         for annotation in annotations_to_select:
             self.select_current_edge(annotation)
@@ -287,8 +298,33 @@ class DrawManager():
             clear (bool): self.ax를 clear하고 이미지를 보여줍니다.
         """
         if clear:
-            self.annotation_ax.clear()
             self.frame_ax.clear()
         self.frame_ax.imshow(frame, cmap=cmap)
-        self.frame_ax.axis("off")
         self.canvas.draw()
+
+    def img_show(self, annotation, clear=False):
+        if clear:
+            self.annotation_ax.clear()
+        self.canvas.draw()
+
+    def get_current_annotation_info(self) -> List[Tuple]:
+        ret = []
+        # print(self.annotation)
+        for an in self.annotation:
+            if isinstance(an, Rectangle):
+                ret.append(get_ractangle_annotation_info(an))
+
+        return ret
+
+    def draw_rectangle(self, label_name, coords, color, isSelect=False):
+        """
+        Args:
+            coords (Tuple): ((x,y), w, h)
+        """
+        an = self.annotation_ax.add_patch(
+            Rectangle(*coords, fill=False, picker=True,
+                      label=label_name, edgecolor=color))
+        if isSelect:
+            self.select_current_edge(an)
+
+        return an

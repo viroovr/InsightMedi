@@ -1,74 +1,80 @@
 import cv2
+from data.data_manager import DataManager
+from .draw_manager import DrawManager
+
 
 class TrackerManager():
-    def __init__(self) -> None:
+    def __init__(self, get, dm) -> None:
+        self.get = get
+        self.dd: DataManager = self.get('data')
+        self.dm: DrawManager = dm
+        self.multitracker = None
+
+        self.is_init = True
         self.is_tracking = False
 
     def init_object_tracking(self, oldframe, newframe):
-        bbox = self.check_bbox()   # object tracking이 가능한 상태인 지 확인하는 함수
-        if bbox:
-            # print(np.array_equal(self.dd.image, frame))
-            # self.gui.slider.setValue(
-            #     self.dd.frame_number + 1)   # 다음 frame으로 업데이트
-            # print(np.array_equal(self.dd.image, frame))
-            if not self.is_tracking:
+        # object tracking이 가능한 상태인 지 확인하는 함수
+
+        bbox = self.get_bbox()
+        if bbox and self.is_tracking:
+            if self.is_init:
                 # object tracking 한 결과 나온 라벨링 그리기
-                self.object_tracking(oldframe, newframe, bbox, init=True)
-                self.is_tracking = True
+                self.object_tracking(oldframe, newframe, bbox, True)
+                self.is_init = False
+
             else:
-                # object tracking 한 결과 나온 라벨링 그리기
                 self.object_tracking(oldframe, newframe, bbox)
         else:
-            print("No bbox")
+            print("bbox error")
+            self.stop_tracking()
 
-    def check_bbox(self):
+    def get_tracking_status(self):
+        return self.is_tracking
+
+    def get_init_status(self):
+        return self.is_init
+
+    def start_tracking(self):
+        self.is_tracking = True
+        self.is_init = True
+
+    def stop_tracking(self):
+        self.is_tracking = False
+        self.is_init = True
+
+    def get_bbox(self):
         """
         object tracking이 가능한 상태인 지 확인하고, bbox를 반환합니다.
 
         Returns:
             bbox (list, empty = False): object tracking이 가능한 상태면 bbox 좌표를 반환하고, 아니면 False를 반환합니다.
         """
-        fn = self.dd.frame_number
-        label_list = self.dd.frame_label_check(fn - 1)
+        fn = self.dd.get_frame_number()
         next_label_list = self.dd.frame_label_check(fn)
         bbox = []
-        print(label_list, next_label_list, self.annotation)
-        if self.dd.file_mode == 'mp4' and label_list and self.annotation:
-            for annotation in self.annotation:
-                label = annotation.get_label()
-                if label not in next_label_list:
-                    coord_list = self.dd.frame_label_dict[fn -
-                                                          1]['rectangle'][label]['coords']
-                    color = self.dd.frame_label_dict[fn -
-                                                     1]['rectangle'][label]['color']
-                    x = coord_list[0][0]
-                    y = coord_list[0][1]
-                    w = coord_list[1]
-                    h = coord_list[2]
-                    bbox.append(
-                        (label, [int(x), int(y), int(w), int(h)], color))
-                    # print(f"{label}의 bbox:", bbox)
+        # print(label_list, next_label_list, self.annotation)
+        for annotation in self.dm.get_current_annotation_info():
+            label, (x, y), w, h, color = annotation
+            if label in next_label_list:
+                self.dd.delete_label(label, fn)
+            x, y, w, h = map(int, [x, y, w, h])
+            bbox.append((label, [x, y, w, h], color))
             print("현재 프레임의 bbox들 좌표:", bbox)
-        else:
-            self.stop_playing()
-            print("bbox error")
-        return bbox
 
-    def stop_playing(self):
-        self.gui.is_tracking = False
-        self.gui.playButtonClicked()
+        return bbox
 
     def object_tracking(self, oldframe, newframe, bbox, init=False):
         """ 주어진 frame이미지에 tracking한 물체에 bbox를 그리고 정보를 저장합니다.
 
         Args:
             frame (ndarray): frame이미지
-            bbox (List): bounding box의 좌표 리스트
+            bbox (List): bounding box의 좌표 리스트 [(라벨명, (좌표), 컬러)]
             init (bool, optional): True일때, tracker를 생성합니다. Defaults to False.
         """
 
         if init:
-            print(f"multitracker 초기화")
+            print("multitracker 초기화")
             self.multitracker = cv2.legacy.MultiTracker_create()
             # ok = self.tracker[label].init(frame, label_bbox)
             for label_bbox in bbox:
@@ -78,48 +84,41 @@ class TrackerManager():
         ok, new_bboxes = self.multitracker.update(newframe)
 
         if ok:
-            # print(f"기존 bbox {bbox}" )
-            # print(f"object tracking한 bbox {new_bboxes}")
-            # print(f"선택된 annotation {self.annotation}")
+            print(new_bboxes)
             for i, new_bbox in enumerate(new_bboxes):
                 # 새로운 라벨 저장을 위해 필요한 데이터들
-                # bbox_ = ((new_bbox[0], new_bbox[1]), new_bbox[2], new_bbox[3])
                 bbox_ = ((int(new_bbox[0]), int(new_bbox[1])), int(
                     new_bbox[2]), int(new_bbox[3]))
-                if not self.is_roi_within_bounds(bbox_, self.dd.frame_width, self.dd.frame_height):
-                    print("화면 벗어남")
-                    self.stop_playing()
-                    return
-                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.7):
+                if not self.is_roi_within_bounds(bbox_, self.dd.get_mp4_info()):
+                    print(f"{bbox[i][0]} box가 화면 벗어남")
+                    self.start_tracking()
+                    self.dm.pop_annotation(bbox[i][0])
+                    continue
+
+                if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.3):
                     # print(self.dd.frame_label_check(self.dd.frame_number - 1))
-                    # label = self.annotation[0].get_label()
                     color = bbox[i][2]
                     label = bbox[i][0]
-                    print(*bbox_, color, label)
+                    print(f"new_bbox : {bbox_}, {color}, {label}")
                     # 라벨 그리기 및 저장
-                    self.pop_annotation(label)
-                    new_annotation = self.ax.add_patch(
-                        Rectangle(*bbox_,
-                                  fill=False, picker=True, label=label, edgecolor=color))
-                    self.select_current_edge(new_annotation)
-                    # print("현재 선택된 label들:", self.annotation)
+                    self.dm.draw_rectangle(label, bbox_, color, isSelect=True)
                     self.dd.add_label('rectangle', label, bbox_, color,
-                                      frame_number=self.dd.frame_number)
-                    # print(self.dd.frame_label_dict)
+                                      frame_number=self.dd.get_frame_number())
                 else:
-                    self.stop_playing()
                     print("유사도 떨어짐 감지")
+                    self.start_tracking()
+                    self.dm.pop_annotation(bbox[i][0])
         else:
-            self.stop_playing()
+            self.stop_tracking()
             print("object tracking failed")
 
     def compare_image(self, oldframe, newframe, oldbox, newbox, similarity_threshold):
-        print(f"old : {oldbox}, new: {newbox}")
+        # print(f"old : {oldbox}, new: {newbox}")
         # print(np.array_equal(oldframe, newframe))
         roi1 = oldframe[oldbox[1]:oldbox[1] +
-                        oldbox[3], oldbox[0]:oldbox[0]+oldbox[2]]
+                        oldbox[3], oldbox[0]:oldbox[0] + oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
-                        newbox[2], newbox[0][0]:newbox[0][0]+newbox[1]]
+                        newbox[2], newbox[0][0]:newbox[0][0] + newbox[1]]
         similarity = self.similarity_score('hsv', roi1, roi2)
 
         if similarity <= similarity_threshold:
@@ -149,15 +148,11 @@ class TrackerManager():
 
             return 1 - score
 
-    def is_roi_within_bounds(self, bbox, screen_width, screen_height, max_ratio=0.8):
-        roi_x = bbox[0][0]
-        roi_y = bbox[0][1]
-        roi_width = bbox[1]
-        roi_height = bbox[2]
+    def is_roi_within_bounds(self, bbox, frame_info, max_ratio=0.8):
+        screen_width, screen_height = frame_info
+        (roi_x, roi_y), roi_width, roi_height = bbox
         roi_right = roi_x + roi_width
         roi_bottom = roi_y + roi_height
-        # print(bbox)
-        # print(roi_right, roi_bottom)
 
         if roi_x < 0 or roi_y < 0 or roi_right > screen_width or roi_bottom > screen_height:
             return False

@@ -59,7 +59,8 @@ class DataManager():
         self.lm.delete_label_file(self.label_dir, file_name)
 
     def delete_label(self, _label_name, frame=None):
-        frame_number = int(frame) if frame is not None else self.frame_number
+        frame_number = int(
+            frame) if frame is not None else self.vm.get_frame_number()
         self.lm.delete_label(_label_name, frame_number)
 
     def modify_label_data(self, _label_name, _coor, _color):
@@ -100,3 +101,13 @@ class DataManager():
 
     def get_first_frame(self, label):
         return self.lm.get_first_frame(label)
+
+    def get_frame_number(self):
+        return self.vm.frame_number
+
+    def get_mp4_info(self):
+        """
+        Returns:
+            (frame_width, frame_height)
+        """
+        return self.vm.get_mp4_info()

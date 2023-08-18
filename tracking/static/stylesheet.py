@@ -5,7 +5,7 @@ MAIN = "background-color: #303030;"
 LIGHTFONT = "color: lightgray;"
 
 # height
-height20 = "height: 20px"
+HEIGHT20 = "height: 20px"
 
 
 # Buttons
@@ -19,3 +19,6 @@ BOLD_GO_BUTTON = "color: white; font-weight: bold; height: 30px; width: 50px;"
 
 # play button
 PLAY_BUTTON = "color: lightgray; height: 20px;"
+
+TRACKING_BUTTON = "color: lightgray; height: 20px;"
+START_TRACKING = "color: green; height: 20px;"

@@ -60,36 +60,39 @@ class LabelManager():
         except FileNotFoundError:
             pass
 
-    def delete_label(self, _label_name: str, frame_number: int):
+    def delete_label(self, label_name: str, frame_number: int):
         """
         주어진 frame에서 해당하는 라벨이름을 가진 라벨을 frame_dict에서 제거합니다.
         """
         if frame_number in self.frame_label_dict:
             label_dict = self.frame_label_dict[frame_number]
             for label_data_dict in label_dict.values():
-                label_data_dict.pop(_label_name, None)
-        print(f"라벨 정보 제거 후: {self.frame_label_dict}")
+                label_data_dict.pop(label_name, None)
+        print("라벨 정보 제거")
 
-    def modify_label_data(self, frame_number, _label_name, _coor, _color):
+    def modify_label_data(self, frame_number, label_name, _coor, _color):
         """주어진 라벨 이름의 좌표값과 컬러값을 변경합니다.
 
         Args:
-            _label_name (string): 라벨 이름
+            label_name (string): 라벨 이름
             _coor (tuple): 객체의 좌표 정보
             _color (string or tuple): 컬러 값 (#ffffff)
         """
         frame_dict = self.frame_label_dict.get(frame_number, {})
         for label_data_dict in frame_dict.values():
-            if _label_name in label_data_dict:
-                label_data_dict[_label_name]['coords'] = _coor
-                label_data_dict[_label_name]['color'] = _color
+            if label_name in label_data_dict:
+                label_data_dict[label_name]['coords'] = _coor
+                label_data_dict[label_name]['color'] = _color
                 break
 
     def label_count(self, label_name):
+        """
+        모든 frame에 label_name 이름을 가진 label의 개수
+        """
         return sum(1 for frame in self.frame_label_dict.values() for data in frame.values() if label_name in data)
 
     def get_frame_label_info(self, frame):
-        frame_directory = self.frame_label_dict[frame]
+        frame_directory = self.frame_label_dict.get(frame, {})
         ret = []
         for drawing_type, label_directory in frame_directory.items():
             for label_name, label_data in label_directory.items():
@@ -108,5 +111,5 @@ class LabelManager():
     def get_first_frame(self, label):
         for frame in self.frame_label_dict:
             if label in self.frame_label_check(frame):
-                return frame, True
-        return None, False
+                return True, frame
+        return False, frame
