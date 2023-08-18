@@ -86,8 +86,8 @@ class TrackerManager():
 
         if ok:
             # print(new_bboxes)
-            self.dd.check_log_path()
-            with open(f"{self.dd.label_dir}/log/bbox_log.txt", "a") as log_file:
+            log_path = self.dd.check_log_path()
+            with open(f"{log_path}/bbox_log.txt", "a") as log_file:
                 for i, new_bbox in enumerate(new_bboxes):
                     # 새로운 라벨 저장을 위해 필요한 데이터들
                     bbox_ = self.refine_bbox(new_bbox, self.dd.get_mp4_info())
@@ -101,16 +101,18 @@ class TrackerManager():
                         # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                         color = bbox[i][2]
                         label = bbox[i][0]
-                        log_file.write(f"Frame: {self.dd.get_frame_number()}, Label: {label}, Bbox: {new_bbox}\n")
+                        log_file.write(
+                            f"Frame: {self.dd.get_frame_number()}, Label: {label}, Bbox: {new_bbox}\n")
                         print(f"new_bbox : {bbox_}, {color}, {label}")
                         # 라벨 그리기 및 저장
-                        self.dm.draw_rectangle(label, bbox_, color, isSelect=True)
+                        self.dm.draw_rectangle(
+                            label, bbox_, color, isSelect=True)
                         self.dd.add_label('rectangle', label, bbox_, color,
-                                        frame_number=self.dd.get_frame_number())
+                                          frame_number=self.dd.get_frame_number())
                     else:
                         print("유사도 떨어짐 감지")
                         self.start_tracking()
-                    self.dm.pop_annotation(bbox[i][0])
+                        self.dm.pop_annotation(bbox[i][0])
         else:
             self.stop_tracking()
             print("object tracking failed")
@@ -122,10 +124,10 @@ class TrackerManager():
                         oldbox[3], oldbox[0]:oldbox[0] + oldbox[2]]
         roi2 = newframe[newbox[0][1]:newbox[0][1] +
                         newbox[2], newbox[0][0]:newbox[0][0] + newbox[1]]
-        
+
         if abs(oldbox[0] - newbox[0][0]) > coords_threshold or abs(oldbox[1] - newbox[0][1]) > coords_threshold:
             similarity = self.similarity_score('hsv', roi1, roi2)
-            
+
             if similarity <= similarity_threshold:
                 print("label이 튀고 유사도가 낮음", similarity)
                 return False
@@ -157,7 +159,7 @@ class TrackerManager():
 
             return 1 - score
 
-    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.6):
+    def is_roi_within_bounds(self, bbox, refined_bbox, max_ratio=0.8):
         roi_width = bbox[2]
         roi_height = bbox[3]
 
@@ -169,7 +171,7 @@ class TrackerManager():
         roi_ratio = refined_roi_area / roi_area
 
         return roi_ratio >= max_ratio
-    
+
     def refine_bbox(self, bbox, frame_info):
         x = max(int(bbox[0]), 0)
         y = max(int(bbox[1]), 0)

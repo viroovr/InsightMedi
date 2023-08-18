@@ -117,5 +117,5 @@ class DataManager():
     
     def check_log_path(self):
         log_path = f"{self.label_dir}/log"
-        if not os.path.exists(log_path):
-            os.mkdir(log_path)
+        os.makedirs(log_path, exist_ok=True)
+        return log_path
