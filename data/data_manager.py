@@ -69,6 +69,9 @@ class DataManager():
 
     def frame_label_check(self, frame) -> List:
         return self.lm.frame_label_check(frame)
+    
+    def get_file_path(self):
+        return f"{self.label_dir}.{self.file_mode}"
 
     def get_frame_label_str(self):
         """
