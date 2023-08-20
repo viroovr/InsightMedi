@@ -98,6 +98,9 @@ class Gui(QMainWindow):
         # Create actions
         self.create_actions(toolbar)
 
+        # Create a status bar
+        self.statusBar().showMessage("")
+
     def init_instance_member(self):
         self.dm: DataManager = self.get('data')   # dcm_data.py의 DcmData()
         self.cl: ct = self.get('control')  # control.py의 Controller()
@@ -138,7 +141,7 @@ class Gui(QMainWindow):
             self.reset_env()
             self.dm.open_file(fname)
             # viewer 설정 초기화
-            self.load_label_button()
+            self.reset_viewer()
 
             if self.dm.file_mode == "mp4":
                 self.init_mp4_ui()
@@ -156,6 +159,11 @@ class Gui(QMainWindow):
         self.canvas.figure.clear()
         self.slider.setValue(0)   # slider value 초기화
         self.cl.init_figure()
+
+    def reset_viewer(self):
+        self.load_label_button()
+        self.set_status_bar()
+        self.set_tool_status_label(init=True)
 
     def video_disconnect_func(self):
         if self.timer_active is not None:
@@ -206,7 +214,6 @@ class Gui(QMainWindow):
 
     def label_button_clicked(self, label):
         # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
-
         self.activate_buttons(label)
         self.cl.label_button_clicked(label)
         am = self.cl.get_annotation_mode()
@@ -470,6 +477,11 @@ class Gui(QMainWindow):
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
         grid_box.addLayout(self.tracking_layout, 2, 1)
+        grid_box.addWidget(self.status_widget, 3, 1)
+
+    def set_status_bar(self):
+        file_path = self.dm.get_file_path()
+        self.statusBar().showMessage(file_path)
 
     def create_actions(self, toolbar):
         # Open file action

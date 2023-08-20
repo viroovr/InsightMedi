@@ -106,6 +106,9 @@ class Controller():
 
     def get_selector_mode(self):
         return self.dm.selector_mode
-    
+
     def zoom(self, percent):
         return self.dm.zoom(percent)
+
+    def get_annotation(self):
+        return self.dm.annotation

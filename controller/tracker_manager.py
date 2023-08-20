@@ -17,7 +17,6 @@ class TrackerManager():
         # object tracking이 가능한 상태인 지 확인하는 함수
 
         bbox = self.get_bbox()
-        print("bbox 확인", bbox)
         if bbox and self.is_tracking:
             if self.is_init:
                 # object tracking 한 결과 나온 라벨링 그리기
@@ -96,7 +95,6 @@ class TrackerManager():
                         self.start_tracking()
                         self.dm.pop_annotation(bbox[i][0])
                         continue
-
                     if self.compare_image(oldframe, newframe, bbox[i][1], bbox_, 0.6, 50):
                         # print(self.dd.frame_label_check(self.dd.frame_number - 1))
                         color = bbox[i][2]
