@@ -28,7 +28,6 @@ class VideoManager():
 
     def open_file(self, fname):
         self.frame_number = 0
-
         self.video_player = cv2.VideoCapture()
         self.video_player.open(fname)
 
@@ -73,3 +72,6 @@ class VideoManager():
             input_frame_value = tf - t - 1
 
         return input_frame_value
+
+    def is_last_frame(self):
+        return self.frame_number == self.total_frame - 1

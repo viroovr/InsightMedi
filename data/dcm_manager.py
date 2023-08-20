@@ -36,7 +36,7 @@ class DcmManager():
             self.image = pixel[0]
         else:
             self.image = pixel
-    
+
     def dcm_windowing_change(self, start, end):
         """
         windwow center는 x값에 대해 변경되므로 마우스 좌우로 변경됩니다.  
@@ -48,17 +48,20 @@ class DcmManager():
 
         def digit_length(num):
             return int(math.log10(num)) + 1 if num > 0 else 0
+
         xd = digit_length(self.image.shape[0]) - 1
         yd = digit_length(self.image.shape[1]) - 1
-        voi_lut_image = None
         try:
-            self.ds.WindowCenter = int(self.ds.WindowCenter + (10**xd) * dx / self.image.shape[0])
-            self.ds.WindowWidth = int(self.ds.WindowWidth - (10**yd) * dy / self.image.shape[1])
+            self.ds.WindowCenter = int(
+                self.ds.WindowCenter + (10**xd) * dx / self.image.shape[0])
+            self.ds.WindowWidth = int(
+                self.ds.WindowWidth - (10**yd) * dy / self.image.shape[1])
             modality_lut_image = apply_modality_lut(self.image, self.ds)
             voi_lut_image = apply_voi_lut(modality_lut_image, self.ds)
 
         except AttributeError:
             self.ds.WindowCenter = 255
             self.ds.WindowWidth = 255
+            voi_lut_image = None
 
         return voi_lut_image

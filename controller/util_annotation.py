@@ -1,15 +1,24 @@
 from random import randint, uniform
 import numpy as np
+from matplotlib.lines import Line2D
 
 
 def get_color(annotation):
-    # rectangle, circle
-    return annotation.get_edgecolor()
+    if isinstance(annotation, Line2D):
+        # straight line
+        return annotation.get_color()
+    else:
+        # rectangle, circle
+        return annotation.get_edgecolor()
 
 
 def set_edge_color(annotation, color):
-    # rectangle, circle
-    annotation.set_edgecolor(color)
+    if isinstance(annotation, Line2D):
+        # straight line
+        annotation.set_color(color)
+    else:
+        # rectangle, circle
+        annotation.set_edgecolor(color)
 
 
 def set_edge_thick(annotation, line_width=1):

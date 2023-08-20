@@ -79,7 +79,7 @@ class Gui(QMainWindow):
         self.set_tracking_layout()
 
         self.tracking_active = False
-
+        self.label_name = None
         # timer
         self.timer = QTimer()
         self.timer_active = None
@@ -135,7 +135,8 @@ class Gui(QMainWindow):
     def open_file(self):
         # 파일 열기 기능 구현
         fname = QFileDialog.getOpenFileName(
-            self, "Open File", "", "Video Files (*.mp4);;All Files (*)", options=QFileDialog.Options())
+            self, "Open File", "", "DCM Files (*.dcm *.DCM);;Video Files (*.mp4);;All Files (*)",
+            options=QFileDialog.Options())
 
         if fname[0]:   # 새로운 파일 열기 한 경우
             self.reset_env()
@@ -163,14 +164,15 @@ class Gui(QMainWindow):
     def reset_viewer(self):
         self.load_label_button()
         self.set_status_bar()
-        self.set_tool_status_label(init=True)
+        self.set_tool_status_label()
 
     def video_disconnect_func(self):
-        if self.timer_active is not None:
-            self.timer.timeout.disconnect(self.updateFrame)
-            self.slider.valueChanged.disconnect(self.sliderValueChanged)
-            self.play_button.clicked.disconnect(self.playButtonClicked)
-            self.tracking_button.clicked.disconnect(self.trackingClicked)
+        if self.timer_active is None:
+            return
+        self.timer.timeout.disconnect(self.updateFrame)
+        self.slider.valueChanged.disconnect(self.sliderValueChanged)
+        self.play_button.clicked.disconnect(self.playButtonClicked)
+        self.tracking_button.clicked.disconnect(self.trackingClicked)
 
     def video_connect_func(self):
         self.timer.timeout.connect(self.updateFrame)
@@ -180,10 +182,8 @@ class Gui(QMainWindow):
 
     def init_dcm_ui(self):
         self.set_window_label()
-        self.cl.img_show(self.dm.get_image())
-        if self.dd.frame_label_check(self.dd.frame_number):
-            self.cl.label_clicked(self.dd.frame_number)
-
+        self.cl.init_dcm_show()
+        self.selector()
         # slider 설정
         self.slider.setMaximum(0)
 
@@ -191,9 +191,10 @@ class Gui(QMainWindow):
         self.video_connect_func()
         self.timer_active = False
         self.cl.frame_show(frame=self.dm.get_frame())
-
+        self.cl.init_annotation_ax()
         if self.dm.frame_label_check(0):
             self.cl.go_clicked(0)
+        self.selector()
 
         # slider 설정
         self.slider.setMaximum(self.dm.get_total_frame_number() - 1)
@@ -216,15 +217,7 @@ class Gui(QMainWindow):
         # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
         self.activate_buttons(label)
         self.cl.label_button_clicked(label)
-        am = self.cl.get_annotation_mode()
-        if am == "line":
-            self.draw_straight_line(label)
-        elif am == "circle":
-            self.draw_circle(label)
-        elif am == "freehand":
-            self.draw_freehand(label)
-        else:
-            self.draw_rectangle(label)
+        self.label_name = label
 
     def go_button_clicked(self, label):
         found, frame = self.dm.get_first_frame(label)
@@ -236,7 +229,6 @@ class Gui(QMainWindow):
         self.setCursor(Qt.ArrowCursor)
         if self.dm.file_mode == "mp4":
             self.slider.setValue(frame)
-
         self.cl.go_clicked(frame, label)
 
     def disable_total_label(self):
@@ -304,7 +296,7 @@ class Gui(QMainWindow):
 
     def updateFrame(self):
         # frame update
-        if self.dm.get_frame_number() == self.dm.get_total_frame_number() - 1:
+        if self.dm.is_last_frame():
             self.playButtonClicked()
             return
         ret, frame_number = self.cl.update_frame(self.tracking_active)
@@ -326,12 +318,13 @@ class Gui(QMainWindow):
     def get_empty_label(self):
         for key, buttons in self.buttons.items():
             if 'normal' in buttons[0].styleSheet():
+                self.activate_buttons(key)
                 return key
-        return next(iter(self.buttons))
+        return None
 
-    def draw_shape(self, shape_type, label=None):
-        if not label:
-            label = self.get_empty_label()
+    def draw_shape(self, shape_type, label):
+        label = label or self.label_name or self.get_empty_label()
+        self.label_name = None
         self.setCursor(Qt.CrossCursor)
         self.cl.init_draw_mode(shape_type, label)
         self.set_tool_status_label()
@@ -362,8 +355,8 @@ class Gui(QMainWindow):
             self.setCursor(Qt.ArrowCursor)
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
             # self.disable_total_label()    # label 버튼 비활성화
-            for label_name in self.dm.frame_label_check(self.dm.frame_number):
-                if self.dm.label_count() == 1:
+            for label_name in self.dm.frame_label_check(self.dm.get_frame_number()):
+                if self.dm.label_count(label_name) == 1:
                     self.deactivate_button(label_name)
                 self.cl.delete_label(label_name)
             self.set_tool_status_label()
@@ -408,22 +401,24 @@ class Gui(QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
             print("t 키 눌림")
-            self.trackingClicked()
+            if self.dm.file_mode == 'mp4':
+                self.trackingClicked()
 
         if event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
-            self.cl.remove_annotation()
+            self.cl.init_selector("delete")
+            for label_name in self.cl.remove_annotation():
+                self.deactivate_button(label_name)
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
             self.selector()
-            for label in self.buttons:
-                self.deactivate_button(label)
 
         if event.key() == Qt.Key_Space:
             print("space bar 눌림")
-            self.playButtonClicked()
+            if self.dm.file_mode == 'mp4':
+                self.playButtonClicked()
 
     def set_buttons(self):
         self.buttons = {}
@@ -431,20 +426,20 @@ class Gui(QMainWindow):
             label_name = f"label {i + 1}"
 
             label_button = self.create_button(label_name, style.NORMAL_LABEL_BUTTON,
-                                              self.label_button_clicked)
+                                              self.label_button_clicked, label_name)
             go_button = self.create_button("GO", style.NORMAL_GO_BUTTON,
-                                           self.go_button_clicked)
+                                           self.go_button_clicked, label_name)
 
             button_layout = self.create_button_layout(label_button, go_button)
             self.label_layout.addLayout(button_layout)
 
             self.buttons[label_name] = [label_button, go_button]
 
-    def create_button(self, label, style_sheet, connect_function=None):
+    def create_button(self, label, style_sheet, connect_function=None, *args):
         button = QPushButton(label)
         button.setStyleSheet(style_sheet)
         if connect_function:
-            button.clicked.connect(partial(connect_function, label))
+            button.clicked.connect(partial(connect_function, *args))
         button.setFocusPolicy(Qt.NoFocus)
         return button
 

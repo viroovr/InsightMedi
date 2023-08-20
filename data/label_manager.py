@@ -31,7 +31,7 @@ class LabelManager():
 
     def frame_label_check(self, frame) -> List[str]:
         """
-        frame에 존재하는 직사각형 라벨이름 리스트를 반환합니다.
+        frame에 존재하는 라벨이름 리스트를 반환합니다.
 
         Args:
             frame(int): frame 번호
@@ -39,11 +39,12 @@ class LabelManager():
         Returns:
             label_list(list): 라벨명 리스트
         """
-        label_list = list(self.frame_label_dict.get(
-            frame, {}).get('rectangle', {}).keys())
-        return label_list
+        drawing_types = ['rectangle', 'circle', 'line', 'freehand']
+        frame_dict = self.frame_label_dict.get(frame, {})
+        return [label for dt in drawing_types for label in frame_dict.get(dt, {})]
 
     def save_label(self, label_dir):
+        print(self.frame_label_dict)
         for key in self.frame_label_dict:
             with open(f"{label_dir}/{key}.txt", 'w') as f:
                 f.write(json.dumps(self.frame_label_dict[key]))

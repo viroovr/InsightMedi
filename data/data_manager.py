@@ -55,21 +55,21 @@ class DataManager():
         self.lm.save_label(self.label_dir)
 
     def add_label(self, drawing_type, label_name, coords, color, frame_number=None):
-        frame_number = self.vm.get_frame_number() if frame_number is None else frame_number
+        frame_number = self.get_frame_number() if frame_number is None else frame_number
         self.lm.add_label(drawing_type, label_name,
                           coords, color, frame_number)
 
     def delete_label_file(self, file_name):
         self.lm.delete_label_file(self.label_dir, file_name)
 
-    def delete_label(self, _label_name, frame=None):
+    def delete_label(self, label_name, frame=None):
         frame_number = int(
             frame) if frame is not None else self.vm.get_frame_number()
-        self.lm.delete_label(_label_name, frame_number)
+        self.lm.delete_label(label_name, frame_number)
 
-    def modify_label_data(self, _label_name, _coor, _color):
+    def modify_label_data(self, label_name, coor, color):
         self.lm.modify_label_data(
-            self.vm.get_frame_number(), _label_name, _coor, _color)
+            self.get_frame_number(), label_name, coor, color)
 
     def frame_label_check(self, frame) -> List:
         return self.lm.frame_label_check(frame)
@@ -81,7 +81,10 @@ class DataManager():
         """
         f"{프레임} / {전체프레임}" 형식의 str을 반환합니다.
         """
-        return self.vm.get_frame_label_str()
+        if self.file_mode == 'dcm':
+            return ""
+        elif self.file_mode == "mp4":
+            return self.vm.get_frame_label_str()
 
     def get_image(self):
         if self.file_mode == 'mp4':
@@ -112,7 +115,10 @@ class DataManager():
         return self.lm.get_first_frame(label)
 
     def get_frame_number(self):
-        return self.vm.frame_number
+        if self.file_mode == 'mp4':
+            return self.vm.frame_number
+        elif self.file_mode == 'dcm':
+            return 0
 
     def get_mp4_info(self):
         """
@@ -134,3 +140,6 @@ class DataManager():
 
     def dcm_windowing_change(self, start, end):
         return self.dm.dcm_windowing_change(start, end)
+
+    def is_last_frame(self):
+        return self.vm.is_last_frame()

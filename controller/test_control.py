@@ -25,11 +25,14 @@ class Controller():
     def init_selector(self, mode):
         self.dm.init_selector(mode)
 
-    def init_zoom_mode(self):
-        self.dm.init_zoom_mode()
+    def init_zoom_mode(self, mode):
+        self.dm.init_zoom_mode(mode)
 
     def init_windowing_mode(self):
         self.dm.init_windowing_mode()
+
+    def init_annotation_ax(self):
+        self.dm.init_annotation_ax(self.dd.get_image())
 
     def delete_label(self, label_name):
         """ 현재 프레임에서 label_name 데이터를 지웁니다."""
@@ -57,7 +60,7 @@ class Controller():
         self.dm.select_off_all()
 
     def remove_annotation(self):
-        self.dm.remove_annotation()
+        return self.dm.remove_annotation()
 
     def erase_annotation(self, label_name):
         self.dm.erase_annotation(label_name)
@@ -66,7 +69,7 @@ class Controller():
         """현재 self.ax에 있는 모든 patch들과 선들을 제거합니다."""
         self.dm.erase_all_annotation()
 
-    def go_clicked(self, frame_number, _label_name=[]):
+    def go_clicked(self, frame_number, label_name=[]):
         """
         go버튼 클릭 시 모든 annotation을 지우고 해당 frame의 annotation을 캔버스에 plot을 그려줍니다.
 
@@ -74,7 +77,7 @@ class Controller():
             _label_name(string or empty list): 해당 라벨의 두께를 두껍게 합니다.
                                         empty list일 경우, self.annotation 라벨들의 강조를 유지합니다.
         """
-        self.dm.go_clicked(frame_number, _label_name)
+        self.dm.go_clicked(frame_number, label_name)
 
     def label_button_clicked(self, label_name):
         if self.dd.is_label_exist(label_name):
@@ -83,6 +86,13 @@ class Controller():
 
     def init_figure(self):
         self.dm.init_figure()
+
+    def init_dcm_show(self):
+
+        self.frame_show(self.dd.get_image(), cmap='gray', clear=True)
+        self.init_annotation_ax()
+        if self.dd.frame_label_check(0):
+            self.go_clicked(0)
 
     def frame_show(self, frame, cmap='viridis', clear=False):
         """

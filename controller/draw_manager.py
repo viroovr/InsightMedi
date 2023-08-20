@@ -28,6 +28,7 @@ class DrawManager():
 
     def init_figure(self):
         # print(dir(self.canvas.figure))
+
         self.frame_ax = self.canvas.figure.add_subplot(
             111, aspect='auto', facecolor="#3A3A3A")
         self.frame_ax.axis("off")
@@ -90,6 +91,8 @@ class DrawManager():
                              self.on_pan_mouse_move, self.on_pan_mouse_release)
 
     def init_windowing_mode(self):
+        if self.dd.file_mode != 'dcm':
+            return
         self.start = self.end = None
         self.is_drawing = False
         self.selector_mode = "windowing"
@@ -125,7 +128,14 @@ class DrawManager():
         if not self.annotation or self.selector_mode != 'selector':
             return
         for an in self.annotation:
-            self.drag.append((an.xy, (event.xdata, event.ydata)))
+            if isinstance(an, Line2D):
+                xdata = an.get_xdata()
+                ydata = an.get_ydata()
+            elif isinstance(an, Rectangle):
+                xdata, ydata = an.xy
+            elif isinstance(an, Circle):
+                xdata, ydata = an.get_center()
+            self.drag.append(((xdata, ydata), (event.xdata, event.ydata)))
         print(self.drag)
         self.is_move = True
 
@@ -138,9 +148,14 @@ class DrawManager():
             (x0, y0), (xpress, ypress) = self.drag[i]
             dx = event.xdata - xpress
             dy = event.ydata - ypress
-
-            an.set_x(x0 + dx)
-            an.set_y(y0 + dy)
+            if isinstance(an, Rectangle):
+                an.set_x(x0 + dx)
+                an.set_y(y0 + dy)
+            elif isinstance(an, Line2D):
+                an.set_xdata(x0 + dx)
+                an.set_ydata(y0 + dy)
+            elif isinstance(an, Circle):
+                an.set_center((x0 + dx, y0 + dy))
 
         self.canvas.draw()
 
@@ -157,7 +172,6 @@ class DrawManager():
         if event.button != 1 or self.is_drawing:
             return
         self.is_drawing = True
-        self.select_off_all()
         if event.inaxes:
             self.start = (event.xdata, event.ydata)
             self.color = random_bright_color()
@@ -183,7 +197,7 @@ class DrawManager():
 
         if self.end not in self.points:
             self.points.append(self.end)
-            self.draw_annotation(self.color)
+            self.draw_annotation()
 
     def on_draw_mouse_release(self, event):
         if event.button == 1:
@@ -195,8 +209,8 @@ class DrawManager():
 
             if self.start and self.end:
                 coords = self.draw_annotation()
-                self.add_annotation(self.annotation_mode, coords,
-                                    self.label_name, self.color)
+                self.add_annotation(self.annotation_mode, self.label_name, coords,
+                                    self.color)
                 self.gui.selector()
 
     def draw_annotation(self):
@@ -212,24 +226,25 @@ class DrawManager():
                 self.label_name, coords, color=self.color)
         elif self.annotation_mode == "circle":
             coords = get_circle_coords(self.start, self.end)
-            self.current_annotation = self.ax.add_patch(
-                Circle(coords, fill=False, picker=True, label=self.label_name, edgecolor=self.color))
+            self.current_annotation = self.annotation_ax.add_patch(
+                Circle(*coords, fill=False, picker=True, label=self.label_name, edgecolor=self.color))
 
         elif self.annotation_mode == "line":
             coords = get_line_coords(self.start, self.end)
-            self.current_annotation = self.ax.plot(
-                coords, picker=True, label=self.label_name, color=self.color)[0]
+            self.current_annotation = self.annotation_ax.plot(
+                *coords, picker=True, label=self.label_name, color=self.color)[0]
 
         elif self.annotation_mode == "freehand":
-            coords = get_freehand_coords(self.points)
-            self.current_annotation = self.ax.plot(
-                coords, picker=True, label=self.label_name, color=self.color)[0]
+            x, y = get_freehand_coords(self.points)
+            self.current_annotation = self.annotation_ax.plot(
+                x, y, picker=True, label=self.label_name, color=self.color)[0]
+            coords = (x, y)
 
         set_edge_thick(self.current_annotation, line_width=3)
         self.canvas.draw()
         return coords
 
-    def add_annotation(self, coords, annotation, label_name, color):
+    def add_annotation(self, annotation, label_name, coords, color):
         # print(self.current_annotation)
         self.annotation.append(self.current_annotation)
         self.dd.add_label(annotation, label_name, coords, color)
@@ -251,6 +266,7 @@ class DrawManager():
             return
         self.gui.set_window_label()
         self.frame_show(image, cmap='gray', clear=True)
+        self.annotation_show()
 
     # select functions
     def select_current_edge(self, annotation, isOff=False):
@@ -281,14 +297,20 @@ class DrawManager():
     def remove_annotation(self):
         """
         self.annotation을 지웁니다.
+
+        Returns(List):
+            지운 annotation 이름 리스트를 반환합니다.
         """
-        if self.annotation is None:
-            return
-        for an in self.annotation:
-            an.remove()
-            self.dd.delete_label(an.get_label())
-        self.annotation.clear()
-        self.canvas.draw()
+        removed_labels = []
+        if self.annotation:
+            for an in self.annotation:
+                label_name = an.get_label()
+                an.remove()
+                self.dd.delete_label(label_name)
+                removed_labels.append(label_name)
+            self.annotation.clear()
+            self.canvas.draw()
+        return removed_labels
 
     def erase_annotation(self, label_name):
         """현재 self.ax에 _label_name의 patch들과 선들을 제거합니다.
@@ -332,9 +354,8 @@ class DrawManager():
             info = get_line_annotation_info(an)
         elif isinstance(an, Circle):
             info = get_circle_annotation_info(an)
-
         if info:
-            self.dd.modify_label_data(info)
+            self.dd.modify_label_data(*info)
 
     def go_clicked(self, frame, label_name=[]):
         """
@@ -354,14 +375,32 @@ class DrawManager():
             return
         for drawing_type, label, coords, color in info:
             if drawing_type == "rectangle":
-                annotation = Rectangle(coords[0], coords[1], coords[2], fill=False,
+                annotation = Rectangle(*coords, fill=False,
                                        picker=True, label=label, edgecolor=color)
                 self.annotation_ax.add_patch(annotation)
+            elif drawing_type == "line":
+                x, y = get_line_coords(*coords)
+                annotation = self.annotation_ax.plot(
+                    x, y, picker=True, label=label, color=color)[0]
+            elif drawing_type == "circle":
+                annotation = self.annotation_ax.add_patch(
+                    Circle(*coords, fill=False, picker=True, label=label, edgecolor=color))
+            elif drawing_type == "freehand":
+                annotation = self.annotation_ax.plot(
+                    *zip(*coords), picker=True, label=label, color=color)[0]
 
             if label in label_name:
                 annotations_to_select.append(annotation)
-        for annotation in annotations_to_select:
-            self.select_current_edge(annotation)
+        for an in annotations_to_select:
+            self.select_current_edge(an)
+        self.canvas.draw()
+
+    def annotation_show(self):
+        for an in self.annotation:
+            if isinstance(an, (Rectangle, Circle)):
+                self.annotation_ax.add_patch(an)
+            else:
+                self.annotation_ax.plot(an)
         self.canvas.draw()
 
     def frame_show(self, frame, cmap, clear=False):
@@ -379,15 +418,21 @@ class DrawManager():
         self.frame_ax.axis("off")
         self.canvas.draw()
 
-    def get_current_annotation_info(self) -> List[Tuple]:
-        ret = []
-        print(self.annotation)
-        for an in self.annotation:
-            if isinstance(an, Rectangle):
-                ret.append(get_ractangle_annotation_info(an))
-                print("ret 확인", ret)
+    def init_annotation_ax(self, image):
+        pass
+        # """
+        # annotation_ax를 frame_ax와 동일한 크기로 설정합니다.
+        # """
+        # self.annotation_ax.set_xbound(self.frame_ax.get_xbound())
+        # self.annotation_ax.set_ybound(self.frame_ax.get_ybound())
+        # self.annotation_ax.set_xlim(self.frame_ax.get_xlim())
+        # self.annotation_ax.set_ylim(self.frame_ax.get_ylim())
+        # self.annotation_ax.imshow(image)
+        # self.annotation_ax.clear()
+        # self.annotation_ax.axis("off")
 
-        return ret
+    def get_current_rectangle_annotation_info(self) -> List[Tuple]:
+        return [get_ractangle_annotation_info(an) for an in self.annotation if isinstance(an, Rectangle)]
 
     def draw_rectangle(self, label_name, coords, color, isSelect=False):
         """
@@ -430,14 +475,16 @@ class DrawManager():
             x_diff = event.x - self.pan_start[0]
             y_diff = event.y - self.pan_start[1]
 
-            current_xlim = self.ax.get_xlim()
-            current_ylim = self.ax.get_ylim()
+            current_xlim = self.frame_ax.get_xlim()
+            current_ylim = self.frame_ax.get_ylim()
 
             new_xlim = (current_xlim[0] - x_diff, current_xlim[1] - x_diff)
             new_ylim = (current_ylim[0] + y_diff, current_ylim[1] + y_diff)
 
-            self.ax.set_xlim(new_xlim)
-            self.ax.set_ylim(new_ylim)
+            self.frame_ax.set_xlim(new_xlim)
+            self.frame_ax.set_ylim(new_ylim)
+            self.annotation_ax.set_xlim(new_xlim)
+            self.annotation_ax.set_ylim(new_ylim)
 
             self.pan_start = (event.x, event.y)
             self.canvas.draw()
