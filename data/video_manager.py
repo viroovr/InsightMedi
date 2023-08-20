@@ -64,7 +64,7 @@ class VideoManager():
 
     def get_mp4_info(self):
         return self.frame_width, self.frame_height
-    
+
     def get_tracking_num(self, text):
         input_frame_value = int(text) if text.isdigit() else -1
         tf = self.total_frame
@@ -73,4 +73,3 @@ class VideoManager():
             input_frame_value = tf - t - 1
 
         return input_frame_value
-        

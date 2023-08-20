@@ -39,6 +39,10 @@ class DataManager():
             self.file_mode = 'mp4'
             self.vm.open_file(fname[0])
 
+        elif file_extension == ".DCM" or file_extension == ".dcm":
+            self.file_mode = 'dcm'
+            self.dm.open_dcm_file(fname)
+
         self.lm.load_label_dict(self.label_dir)
 
     def load_all_label(self):
@@ -79,6 +83,8 @@ class DataManager():
     def get_image(self):
         if self.file_mode == 'mp4':
             return self.vm.get_frame()
+        elif self.file_mode == 'dcm':
+            return self.dm.get_image()
 
     def get_total_frame_number(self):
         return self.vm.total_frame
@@ -114,8 +120,14 @@ class DataManager():
 
     def get_tracking_num(self, text):
         return self.vm.get_tracking_num(text)
-    
+
     def check_log_path(self):
         log_path = f"{self.label_dir}/log"
         os.makedirs(log_path, exist_ok=True)
         return log_path
+
+    def get_windwoing_value(self):
+        return self.dm.get_windwoing_value()
+
+    def dcm_windowing_change(self, start, end):
+        return self.dm.dcm_windowing_change(start, end)

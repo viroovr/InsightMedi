@@ -1,7 +1,7 @@
-
 from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from controller.util_annotation import *
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
+from matplotlib.lines import Line2D
 from data.data_manager import DataManager
 from typing import List, Tuple
 
@@ -23,6 +23,7 @@ class DrawManager():
         self.cid = []
 
         self.start = self.end = None
+        self.points = []
         self.drag = []
 
     def init_figure(self):
@@ -54,14 +55,18 @@ class DrawManager():
 
     def init_draw_mode(self, mode, label):
         self.start = self.end = None
-
         self.selector_mode = 'drawing'
 
         self.label_name = label
 
         self.annotation_mode = mode
-        self.set_mpl_connect(self.on_mouse_press,
-                             self.on_draw_mouse_move, self.on_draw_mouse_release)
+        if self.annotation_mode == "freehand":
+            self.points.clear()
+            self.set_mpl_connect(self.on_mouse_press,
+                                 self.on_freehand_mouse_move, self.on_draw_mouse_release)
+        else:
+            self.set_mpl_connect(self.on_mouse_press,
+                                 self.on_draw_mouse_move, self.on_draw_mouse_release)
 
     def init_selector(self, mode):
         self.drag.clear()
@@ -75,6 +80,23 @@ class DrawManager():
             return
         self.set_mpl_connect(self.selector_on_press, self.selector_on_move,
                              self.selector_on_release, self.selector_on_pick)
+
+    def init_zoom_mode(self, mode):
+        self.pan_start = None
+        self.is_panning = False
+        self.selector_mode = 'zoom'
+        self.annotation_mode = mode
+        self.set_mpl_connect(self.on_pan_mouse_press,
+                             self.on_pan_mouse_move, self.on_pan_mouse_release)
+
+    def init_windowing_mode(self):
+        self.start = self.end = None
+        self.is_drawing = False
+        self.selector_mode = "windowing"
+        self.annotation_mode = None
+        self.gui.set_window_label()
+        self.set_mpl_connect(self.on_mouse_press,
+                             self.on_windowing_mouse_move, self.on_windowing_mouse_release)
 
     # selector events
     def selector_on_pick(self, event):
@@ -151,6 +173,18 @@ class DrawManager():
         self.end = (event.xdata, event.ydata)
         self.draw_annotation()
 
+    def on_freehand_mouse_move(self, event):
+        if not self.is_drawing or not event.inaxes:
+            return
+        if self.start is None:
+            self.start = (event.xdata, event.ydata)
+            self.color = random_bright_color()
+        self.end = (event.xdata, event.ydata)
+
+        if self.end not in self.points:
+            self.points.append(self.end)
+            self.draw_annotation(self.color)
+
     def on_draw_mouse_release(self, event):
         if event.button == 1:
             self.is_drawing = False
@@ -160,8 +194,9 @@ class DrawManager():
                 print("Clicked outside the axes!")
 
             if self.start and self.end:
-                self.draw_annotation()
-                self.add_annotation(self.label_name, self.color)
+                coords = self.draw_annotation()
+                self.add_annotation(self.annotation_mode, coords,
+                                    self.label_name, self.color)
                 self.gui.selector()
 
     def draw_annotation(self):
@@ -172,17 +207,50 @@ class DrawManager():
             self.current_annotation.remove()
 
         if self.annotation_mode == "rectangle":
+            coords = get_rectangle_coords(self.start, self.end)
             self.current_annotation = self.draw_rectangle(
-                self.label_name, get_rectangle_coords(self.start, self.end), color=self.color)
+                self.label_name, coords, color=self.color)
+        elif self.annotation_mode == "circle":
+            coords = get_circle_coords(self.start, self.end)
+            self.current_annotation = self.ax.add_patch(
+                Circle(coords, fill=False, picker=True, label=self.label_name, edgecolor=self.color))
+
+        elif self.annotation_mode == "line":
+            coords = get_line_coords(self.start, self.end)
+            self.current_annotation = self.ax.plot(
+                coords, picker=True, label=self.label_name, color=self.color)[0]
+
+        elif self.annotation_mode == "freehand":
+            coords = get_freehand_coords(self.points)
+            self.current_annotation = self.ax.plot(
+                coords, picker=True, label=self.label_name, color=self.color)[0]
 
         set_edge_thick(self.current_annotation, line_width=3)
         self.canvas.draw()
+        return coords
 
-    def add_annotation(self, label_name, color):
+    def add_annotation(self, coords, annotation, label_name, color):
         # print(self.current_annotation)
         self.annotation.append(self.current_annotation)
-        self.dd.add_label("rectangle", label_name,
-                          get_rectangle_coords(self.start, self.end), color)
+        self.dd.add_label(annotation, label_name, coords, color)
+
+    def on_windowing_mouse_move(self, event):
+        if self.is_drawing:
+            self.end = (event.xdata, event.ydata)
+            self.dcm_windowing_change()
+
+    def on_windowing_mouse_release(self, event):
+        if event.button == 1:
+            self.is_drawing = False
+            self.end = (event.xdata, event.ydata)
+            self.dcm_windowing_change()
+
+    def dcm_windowing_change(self):
+        image = self.dd.dcm_windowing_change(self.start, self.end)
+        if image is None:
+            return
+        self.gui.set_window_label()
+        self.frame_show(image, cmap='gray', clear=True)
 
     # select functions
     def select_current_edge(self, annotation, isOff=False):
@@ -257,8 +325,16 @@ class DrawManager():
         angs:
             an(annotation): annotation 객체를 인자로 주어야 합니다.
         """
-        label, (x, y), w, h, color = get_ractangle_annotation_info(an)
-        self.dd.modify_label_data(label, ((x, y), w, h), color)
+        info = None
+        if isinstance(an, Rectangle):
+            info = get_ractangle_annotation_info(an)
+        elif isinstance(an, Line2D):
+            info = get_line_annotation_info(an)
+        elif isinstance(an, Circle):
+            info = get_circle_annotation_info(an)
+
+        if info:
+            self.dd.modify_label_data(info)
 
     def go_clicked(self, frame, label_name=[]):
         """
@@ -324,3 +400,47 @@ class DrawManager():
             self.select_current_edge(an)
 
         return an
+
+    def zoom(self, percent):
+        """
+        zoom을 하는 함수입니다.
+
+        Args:
+            percent (float): 경계선을 줄이거나 늘릴 비율을 입력합니다.
+        """
+        current_xlim = self.frame_ax.get_xlim()
+        current_ylim = self.frame_ax.get_ylim()
+
+        new_xlim = (current_xlim[0] * percent, current_xlim[1] * percent)
+        new_ylim = (current_ylim[0] * percent, current_ylim[1] * percent)
+
+        self.frame_ax.set_xlim(new_xlim)
+        self.frame_ax.set_ylim(new_ylim)
+
+        self.canvas.draw()
+
+    def on_pan_mouse_press(self, event):
+        if event.button == 1:
+            self.is_panning = True
+            self.pan_start = (event.x, event.y)
+
+    def on_pan_mouse_move(self, event):
+        if self.is_panning:
+            x_diff = event.x - self.pan_start[0]
+            y_diff = event.y - self.pan_start[1]
+
+            current_xlim = self.ax.get_xlim()
+            current_ylim = self.ax.get_ylim()
+
+            new_xlim = (current_xlim[0] - x_diff, current_xlim[1] - x_diff)
+            new_ylim = (current_ylim[0] + y_diff, current_ylim[1] + y_diff)
+
+            self.ax.set_xlim(new_xlim)
+            self.ax.set_ylim(new_ylim)
+
+            self.pan_start = (event.x, event.y)
+            self.canvas.draw()
+
+    def on_pan_mouse_release(self, event):
+        if event.button == 1:
+            self.is_panning = False

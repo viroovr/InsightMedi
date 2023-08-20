@@ -1,4 +1,5 @@
 from random import randint, uniform
+import numpy as np
 
 
 def get_color(annotation):
@@ -41,9 +42,45 @@ def get_rectangle_coords(start, end):
     return (x, y), width, height
 
 
+def get_circle_coords(start, end):
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    center = start
+    radius = np.sqrt(dx ** 2 + dy ** 2)
+    return center, radius
+
+
+def get_line_coords(start, end):
+    x = [start[0], end[0]]
+    y = [start[1], end[1]]
+    return x, y
+
+
+def get_freehand_coords(points):
+    return zip(*points)
+
+
 def get_ractangle_annotation_info(an):
     """
     Retruns:
         (라벨명, (x, y), w, h, 컬러값)
     """
-    return (an.get_label(), an.xy, an.get_width(), an.get_height(), get_color(an))
+    return an.get_label(), (an.xy, an.get_width(), an.get_height()), get_color(an)
+
+
+def get_line_annotation_info(an):
+    """
+    Retruns:
+        (라벨명, (x, y), 컬러값)
+    """
+    data = an.get_data()
+    ret_points = [(data[0][i], data[1][i]) for i in range(len(data[0]))]
+    return an.get_label(), ret_points, get_color(an)
+
+
+def get_circle_annotation_info(an):
+    """
+    Retruns:
+        (라벨명, (center, radius), 컬러값)
+    """
+    return an.get_label(), (an.get_center(), an.get_radius()), get_color(an)

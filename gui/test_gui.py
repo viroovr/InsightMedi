@@ -76,18 +76,7 @@ class Gui(QMainWindow):
         self.play_button.setStyleSheet(style.PLAY_BUTTON)
         self.play_button.setFocusPolicy(Qt.NoFocus)
 
-        # tracking button
-        self.tracking_layout = QHBoxLayout()
-        self.tracking_button = QPushButton("Tracking")
-        self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
-        self.tracking_button.setFocusPolicy(Qt.NoFocus)
-        self.tracking_layout.addWidget(self.tracking_button)
-
-        # tracking textbox
-        self.tracking_textbox = QLineEdit()
-        self.tracking_textbox.setValidator(QIntValidator(1, 100, self))
-        self.tracking_textbox.setStyleSheet(style.LIGHTFONT)
-        self.tracking_layout.addWidget(self.tracking_textbox)
+        self.set_tracking_layout()
 
         self.tracking_active = False
 
@@ -127,6 +116,19 @@ class Gui(QMainWindow):
     def set_frame_label(self):
         self.frame_label.setText(self.dm.get_frame_label_str())
 
+    def set_window_label(self):
+        wl_value, ww_value = self.dm.get_windwoing_value()
+        self.wl_label.setText(f"WL: {wl_value}")
+        self.ww_label.setText(f"WW: {ww_value}")
+
+        self.windowing_layout.update()
+
+    def set_tool_status_label(self):
+        sm = self.cl.get_selector_mode()
+        am = self.cl.get_annotation_mode()
+        smam = f"Tool Status: {sm} ({am})" if am else f"Tool Status: {sm}"
+        self.tool_status_label.setText(smam)
+
     def open_file(self):
         # 파일 열기 기능 구현
         fname = QFileDialog.getOpenFileName(
@@ -140,6 +142,8 @@ class Gui(QMainWindow):
 
             if self.dm.file_mode == "mp4":
                 self.init_mp4_ui()
+            elif self.dm.file_mode == 'dcm':
+                self.init_dcm_ui()
             else:    # viewer에 호환되지 않는 확장자 파일
                 print("Not accepted file format")
         else:
@@ -166,10 +170,19 @@ class Gui(QMainWindow):
         self.play_button.clicked.connect(self.playButtonClicked)
         self.tracking_button.clicked.connect(self.trackingClicked)
 
+    def init_dcm_ui(self):
+        self.set_window_label()
+        self.cl.img_show(self.dm.get_image())
+        if self.dd.frame_label_check(self.dd.frame_number):
+            self.cl.label_clicked(self.dd.frame_number)
+
+        # slider 설정
+        self.slider.setMaximum(0)
+
     def init_mp4_ui(self):
         self.video_connect_func()
         self.timer_active = False
-        self.cl.frame_show(frame=self.dm.get_image())
+        self.cl.frame_show(frame=self.dm.get_frame())
 
         if self.dm.frame_label_check(0):
             self.cl.go_clicked(0)
@@ -196,7 +209,15 @@ class Gui(QMainWindow):
 
         self.activate_buttons(label)
         self.cl.label_button_clicked(label)
-        self.draw_rectangle(label)
+        am = self.cl.get_annotation_mode()
+        if am == "line":
+            self.draw_straight_line(label)
+        elif am == "circle":
+            self.draw_circle(label)
+        elif am == "freehand":
+            self.draw_freehand(label)
+        else:
+            self.draw_rectangle(label)
 
     def go_button_clicked(self, label):
         found, frame = self.dm.get_first_frame(label)
@@ -212,7 +233,7 @@ class Gui(QMainWindow):
         self.cl.go_clicked(frame, label)
 
     def disable_total_label(self):
-        # 해당 프레임에 있는 전체 label 버튼 비활성화
+        # 전체 label 버튼 비활성화
         for label_name in self.buttons:
             self.deactivate_button(label_name)
 
@@ -278,26 +299,52 @@ class Gui(QMainWindow):
         # frame update
         if self.dm.get_frame_number() == self.dm.get_total_frame_number() - 1:
             self.playButtonClicked()
+            return
         ret, frame_number = self.cl.update_frame(self.tracking_active)
         if ret:
             self.set_frame_label()  # 현재 frame 상태 화면에 update
             if self.timer_active:   # 영상 재생 중
                 self.slider.setValue(frame_number)
 
+    def windowing(self):
+        self.setCursor(Qt.OpenHandCursor)
+        self.cl.init_windowing_mode()
+        self.set_tool_status_label()
+
     def selector(self):
         self.setCursor(Qt.ArrowCursor)
         self.cl.init_selector("selector")
+        self.set_tool_status_label()
+
+    def get_empty_label(self):
+        for key, buttons in self.buttons.items():
+            if 'normal' in buttons[0].styleSheet():
+                return key
+        return next(iter(self.buttons))
+
+    def draw_shape(self, shape_type, label=None):
+        if not label:
+            label = self.get_empty_label()
+        self.setCursor(Qt.CrossCursor)
+        self.cl.init_draw_mode(shape_type, label)
+        self.set_tool_status_label()
 
     def draw_rectangle(self, label=None):
-        if label:
-            self.setCursor(Qt.CrossCursor)
-            self.cl.init_draw_mode("rectangle", label)
-        else:
-            QMessageBox.information(
-                self, 'Message', 'Click label button before drawing')
+        self.draw_shape("rectangle", label)
+
+    def draw_line(self, label=None):
+        self.draw_shape("line", label)
+
+    def draw_circle(self, label=None):
+        self.draw_shape("circle", label)
+
+    def draw_freehand(self, label=None):
+        self.draw_shape("freehand", label)
 
     def delete(self):
+        self.setCursor(Qt.PointingHandCursor)
         self.cl.init_selector("delete")
+        self.set_tool_status_label()
 
     def delete_all(self):
         # print("erase")
@@ -305,14 +352,28 @@ class Gui(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
+            self.setCursor(Qt.ArrowCursor)
             self.cl.erase_all_annotation()    # canvas 위에 그려진 label 삭제
             # self.disable_total_label()    # label 버튼 비활성화
             for label_name in self.dm.frame_label_check(self.dm.frame_number):
-                self.deactivate_button(label_name)
+                if self.dm.label_count() == 1:
+                    self.deactivate_button(label_name)
                 self.cl.delete_label(label_name)
+            self.set_tool_status_label()
+
+    def zoom_in(self):
+        self.cl.init_zoom_mode("in")
+        self.cl.zoom(0.9)
+        self.set_tool_status_label()
+
+    def zoom_out(self):
+        self.cl.init_zoom_mode("out")
+        self.cl.zoom(1.1)
+        self.set_tool_status_label()
 
     def trackingClicked(self):
-        input_frame_value = self.dm.get_tracking_num(self.tracking_textbox.text())
+        input_frame_value = self.dm.get_tracking_num(
+            self.tracking_textbox.text())
         print("object tracking 실행될 frame 수", input_frame_value)
         if not self.tracking_active:
             self.cl.start_tracking_status()
@@ -360,37 +421,50 @@ class Gui(QMainWindow):
     def set_buttons(self):
         self.buttons = {}
         for i in range(8):
-            button_layout = QHBoxLayout()
-            label_name = "label %d" % (i + 1)
-            label_button = QPushButton(label_name)
-            label_button.setStyleSheet(style.NORMAL_LABEL_BUTTON)
-            label_button.clicked.connect(
-                partial(self.label_button_clicked, label_name))
-            label_button.setFocusPolicy(Qt.NoFocus)
+            label_name = f"label {i + 1}"
 
-            go_button = QPushButton("GO")
-            go_button.setStyleSheet(style.NORMAL_GO_BUTTON)
-            go_button.clicked.connect(
-                partial(self.go_button_clicked, label_name))
-            go_button.setFocusPolicy(Qt.NoFocus)
+            label_button = self.create_button(label_name, style.NORMAL_LABEL_BUTTON,
+                                              self.label_button_clicked)
+            go_button = self.create_button("GO", style.NORMAL_GO_BUTTON,
+                                           self.go_button_clicked)
 
-            button_layout.addWidget(label_button)
-            button_layout.addWidget(go_button)
+            button_layout = self.create_button_layout(label_button, go_button)
             self.label_layout.addLayout(button_layout)
 
             self.buttons[label_name] = [label_button, go_button]
 
+    def create_button(self, label, style_sheet, connect_function=None):
+        button = QPushButton(label)
+        button.setStyleSheet(style_sheet)
+        if connect_function:
+            button.clicked.connect(partial(connect_function, label))
+        button.setFocusPolicy(Qt.NoFocus)
+        return button
+
+    def create_textbox(self, validator, style_sheet):
+        textbox = QLineEdit()
+        textbox.setValidator(validator)
+        textbox.setStyleSheet(style_sheet)
+        return textbox
+
+    def create_button_layout(self, *buttons):
+        layout = QHBoxLayout()
+        layout.addStretch()
+        for button in buttons:
+            layout.addWidget(button)
+        return layout
+
     def set_gui_layout(self):
         grid_box = QGridLayout(self.main_widget)
         grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        # grid_box.setColumnStretch(1, 1)   # column 1 width 1
+        grid_box.setColumnStretch(1, 1)   # column 1 width 1
 
         # column 0
         grid_box.addWidget(self.canvas, 0, 0, 8, 1)
         grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        # grid_box.addWidget(self.frame_label, 8, 1)
+        grid_box.addWidget(self.frame_label, 8, 1)
 
         # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
@@ -399,12 +473,26 @@ class Gui(QMainWindow):
 
     def create_actions(self, toolbar):
         # Open file action
-        actions = ["open", "save", "selector", "rectangle", "delete", "clear"]
-        func = [self.open_file, self.save, self.selector,
-                self.draw_rectangle, self.delete, self.delete_all]
+        actions = ["open", "save", "selector", "windowing", "line",
+                   "rectangle", "circle", "freehand",
+                   "zoomin", "zoomout", "delete", "clear"]
+        func = [self.open_file, self.save, self.selector, self.windowing, self.draw_line,
+                self.draw_rectangle, self.draw_circle, self.draw_freehand,
+                self.zoom_in, self.zoom_out, self.delete, self.delete_all]
         icon_dir = 'gui/icon'
         for act, func in zip(actions, func):
             action = QAction(
                 QIcon(f'{icon_dir}/{act}_icon.png'), act.title(), self)
             action.triggered.connect(func)
             toolbar.addAction(action)
+
+    def set_tracking_layout(self):
+        self.tracking_layout = QHBoxLayout()
+
+        self.tracking_button = self.create_button(
+            "Tracking", style.TRACKING_BUTTON)
+        self.tracking_layout.addWidget(self.tracking_button)
+
+        self.tracking_textbox = self.create_textbox(
+            QIntValidator(1, 100, self), style.LIGHTFONT)
+        self.tracking_layout.addWidget(self.tracking_textbox)

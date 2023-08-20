@@ -25,6 +25,12 @@ class Controller():
     def init_selector(self, mode):
         self.dm.init_selector(mode)
 
+    def init_zoom_mode(self):
+        self.dm.init_zoom_mode()
+
+    def init_windowing_mode(self):
+        self.dm.init_windowing_mode()
+
     def delete_label(self, label_name):
         """ 현재 프레임에서 label_name 데이터를 지웁니다."""
         # data에서 현재 frame의 해당 라벨이름 정보 제거하기
@@ -94,3 +100,12 @@ class Controller():
 
     def stop_tracking_status(self):
         self.tm.stop_tracking()
+
+    def get_annotation_mode(self):
+        return self.dm.annotation_mode
+
+    def get_selector_mode(self):
+        return self.dm.selector_mode
+    
+    def zoom(self, percent):
+        return self.dm.zoom(percent)

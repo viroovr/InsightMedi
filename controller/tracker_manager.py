@@ -56,7 +56,7 @@ class TrackerManager():
         bbox = []
         # print(label_list, next_label_list, self.annotation)
         for annotation in self.dm.get_current_annotation_info():
-            label, (x, y), w, h, color = annotation
+            label, ((x, y), w, h), color = annotation
             if label in next_label_list:
                 self.dd.delete_label(label, fn)
             x, y, w, h = map(int, [x, y, w, h])
