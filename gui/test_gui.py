@@ -190,7 +190,7 @@ class Gui(QMainWindow):
     def init_mp4_ui(self):
         self.video_connect_func()
         self.timer_active = False
-        self.cl.frame_show(frame=self.dm.get_frame())
+        self.cl.frame_show(frame=self.dm.get_image())
         self.cl.init_annotation_ax()
         if self.dm.frame_label_check(0):
             self.cl.go_clicked(0)
