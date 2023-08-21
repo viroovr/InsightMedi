@@ -1,8 +1,8 @@
 import sys
 from PyQt5.QtWidgets import QApplication
-from gui.test_gui import Gui
+from gui.gui_manager import GuiManager
 from data.data_manager import DataManager
-from controller.test_control import Controller
+from controller.controller import Controller
 
 
 class Main(QApplication):
@@ -10,7 +10,7 @@ class Main(QApplication):
         super().__init__(sys.argv)
         self.instances = {
             'data': DataManager(self.get),
-            'gui': Gui(self.get),
+            'gui': GuiManager(self.get),
             'control': Controller(self.get)
         }
 

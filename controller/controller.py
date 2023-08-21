@@ -122,3 +122,6 @@ class Controller():
 
     def get_annotation(self):
         return self.dm.annotation
+
+    def get_label_name(self):
+        return self.dm.label_name

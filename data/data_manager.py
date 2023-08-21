@@ -49,7 +49,7 @@ class DataManager():
         return self.lm.load_all_label()
 
     def is_label_exist(self, label_name):
-        return self.lm.is_label_exist(label_name, self.vm.get_frame_number())
+        return self.lm.is_label_exist(label_name, self.get_frame_number())
 
     def save_label(self):
         self.lm.save_label(self.label_dir)
@@ -73,7 +73,7 @@ class DataManager():
 
     def frame_label_check(self, frame) -> List:
         return self.lm.frame_label_check(frame)
-    
+
     def get_file_path(self):
         return f"{self.label_dir}.{self.file_mode}"
 

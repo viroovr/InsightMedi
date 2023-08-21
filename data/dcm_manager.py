@@ -36,6 +36,14 @@ class DcmManager():
             self.image = pixel[0]
         else:
             self.image = pixel
+        self.init_digit_length()
+
+    def init_digit_length(self):
+        def digit_length(num):
+            return int(math.log10(num)) + 1 if num > 0 else 0
+
+        self.xd = digit_length(self.image.shape[0]) - 1
+        self.yd = digit_length(self.image.shape[1]) - 1
 
     def dcm_windowing_change(self, start, end):
         """
@@ -45,12 +53,8 @@ class DcmManager():
         """
         dx = end[0] - start[0]
         dy = end[1] - start[1]
-
-        def digit_length(num):
-            return int(math.log10(num)) + 1 if num > 0 else 0
-
-        xd = digit_length(self.image.shape[0]) - 1
-        yd = digit_length(self.image.shape[1]) - 1
+        xd = self.xd
+        yd = self.yd
         try:
             self.ds.WindowCenter = int(
                 self.ds.WindowCenter + (10**xd) * dx / self.image.shape[0])

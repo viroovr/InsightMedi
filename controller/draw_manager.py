@@ -38,7 +38,7 @@ class DrawManager():
         self.annotation_ax.axis("off")
 
     def get_annotation(self):
-        return self.annotation()
+        return self.annotation
     # mpl connect & disconnect
 
     def set_mpl_connect(self, *args):
@@ -56,6 +56,7 @@ class DrawManager():
 
     def init_draw_mode(self, mode, label):
         self.start = self.end = None
+        self.current_annotation = None
         self.selector_mode = 'drawing'
 
         self.label_name = label
@@ -211,6 +212,7 @@ class DrawManager():
                 coords = self.draw_annotation()
                 self.add_annotation(self.annotation_mode, self.label_name, coords,
                                     self.color)
+                self.label_name = None
                 self.gui.selector()
 
     def draw_annotation(self):
@@ -244,10 +246,11 @@ class DrawManager():
         self.canvas.draw()
         return coords
 
-    def add_annotation(self, annotation, label_name, coords, color):
+    def add_annotation(self, annotation_type, label_name, coords, color):
         # print(self.current_annotation)
         self.annotation.append(self.current_annotation)
-        self.dd.add_label(annotation, label_name, coords, color)
+        print("add annotaion", coords)
+        self.dd.add_label(annotation_type, label_name, coords, color)
 
     def on_windowing_mouse_move(self, event):
         if self.is_drawing:
@@ -259,6 +262,7 @@ class DrawManager():
             self.is_drawing = False
             self.end = (event.xdata, event.ydata)
             self.dcm_windowing_change()
+            self.go_clicked(0)
 
     def dcm_windowing_change(self):
         image = self.dd.dcm_windowing_change(self.start, self.end)
@@ -266,7 +270,6 @@ class DrawManager():
             return
         self.gui.set_window_label()
         self.frame_show(image, cmap='gray', clear=True)
-        self.annotation_show()
 
     # select functions
     def select_current_edge(self, annotation, isOff=False):
@@ -378,16 +381,12 @@ class DrawManager():
                 annotation = Rectangle(*coords, fill=False,
                                        picker=True, label=label, edgecolor=color)
                 self.annotation_ax.add_patch(annotation)
-            elif drawing_type == "line":
-                x, y = get_line_coords(*coords)
-                annotation = self.annotation_ax.plot(
-                    x, y, picker=True, label=label, color=color)[0]
             elif drawing_type == "circle":
                 annotation = self.annotation_ax.add_patch(
                     Circle(*coords, fill=False, picker=True, label=label, edgecolor=color))
-            elif drawing_type == "freehand":
+            elif drawing_type == "line" or drawing_type == "freehand":
                 annotation = self.annotation_ax.plot(
-                    *zip(*coords), picker=True, label=label, color=color)[0]
+                    *coords, picker=True, label=label, color=color)[0]
 
             if label in label_name:
                 annotations_to_select.append(annotation)
@@ -395,13 +394,13 @@ class DrawManager():
             self.select_current_edge(an)
         self.canvas.draw()
 
-    def annotation_show(self):
-        for an in self.annotation:
-            if isinstance(an, (Rectangle, Circle)):
-                self.annotation_ax.add_patch(an)
-            else:
-                self.annotation_ax.plot(an)
-        self.canvas.draw()
+    # def annotation_show(self):
+    #     for an in self.annotation:
+    #         if isinstance(an, (Rectangle, Circle)):
+    #             self.annotation_ax.add_patch(an)
+    #         else:
+    #             self.annotation_ax.plot(an)
+    #     self.canvas.draw()
 
     def frame_show(self, frame, cmap, clear=False):
         """
