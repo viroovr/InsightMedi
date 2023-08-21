@@ -404,7 +404,7 @@ class GuiManager(QMainWindow):
                 self.tracking_active = False
                 self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
                 break
-    
+
     def clear_focus(self):
         self.tracking_textbox.clearFocus()
 
@@ -416,7 +416,6 @@ class GuiManager(QMainWindow):
 
         if event.key() == Qt.Key_Delete:
             print("delete 키 눌림")
-            self.cl.init_selector("delete")
             for label_name in self.cl.remove_annotation():
                 if self.dm.label_count(label_name) == 1:
                     self.deactivate_button(label_name)
@@ -489,9 +488,6 @@ class GuiManager(QMainWindow):
         grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        grid_box.addWidget(self.frame_label, 8, 1)
-
-        # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
         grid_box.addLayout(self.tracking_layout, 2, 1)
