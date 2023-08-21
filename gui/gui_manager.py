@@ -492,6 +492,7 @@ class GuiManager(QMainWindow):
         grid_box.addWidget(self.play_button, 1, 1)
         grid_box.addLayout(self.tracking_layout, 2, 1)
         grid_box.addWidget(self.status_widget, 3, 1)
+        # grid_box.addLayout(self.dcm_header_layout, 4, 1)
 
     def set_status_bar(self):
         file_path = self.dm.get_file_path()
