@@ -381,6 +381,7 @@ class GuiManager(QMainWindow):
         input_frame_value = self.dm.get_tracking_num(
             self.tracking_textbox.text())
         print("object tracking 실행될 frame 수", input_frame_value)
+        self.clear_focus()
         if not self.tracking_active:
             self.cl.start_tracking_status()
             self.tracking_active = True
@@ -403,6 +404,9 @@ class GuiManager(QMainWindow):
                 self.tracking_active = False
                 self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
                 break
+    
+    def clear_focus(self):
+        self.tracking_textbox.clearFocus()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
@@ -414,11 +418,13 @@ class GuiManager(QMainWindow):
             print("delete 키 눌림")
             self.cl.init_selector("delete")
             for label_name in self.cl.remove_annotation():
-                self.deactivate_button(label_name)
+                if self.dm.label_count(label_name) == 1:
+                    self.deactivate_button(label_name)
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
+            self.clear_focus()
             self.selector()
 
         if event.key() == Qt.Key_Space:

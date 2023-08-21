@@ -118,7 +118,14 @@ class LabelManager():
         return False
 
     def get_first_frame(self, label):
+        frame = None
         for frame in self.frame_label_dict:
             if label in self.frame_label_check(frame):
                 return True, frame
         return False, frame
+
+    def get_color_by_type_and_name(self, drawing_type, label_name):
+        found, frame = self.get_first_frame(label_name)
+        if found and label_name in self.frame_label_dict.get(frame, {}).get(drawing_type, {}):
+            return self.frame_label_dict[frame][drawing_type][label_name]['color']
+        return None

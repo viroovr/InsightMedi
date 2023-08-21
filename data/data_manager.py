@@ -143,3 +143,6 @@ class DataManager():
 
     def is_last_frame(self):
         return self.vm.is_last_frame()
+
+    def get_color_by_type_and_name(self, drawing_type, label_name):
+        return self.lm.get_color_by_type_and_name(drawing_type, label_name)

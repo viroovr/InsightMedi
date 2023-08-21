@@ -107,6 +107,9 @@ class DrawManager():
         if self.is_move or self.selector_mode != 'selector':
             return
         modifier = event.mouseevent.modifiers
+        if self.annotation_mode == 'delete':
+            self.delete_on_pick(event.artist.get_label())
+            return
 
         if 'ctrl' in modifier and len(modifier) == 1:
             # print('ctrl + click')
@@ -120,6 +123,12 @@ class DrawManager():
 
         elif len(self.annotation) <= 1:
             self.select_current_edge(event.artist, isOff=True)
+
+    def delete_on_pick(self, label_name):
+        if self.dd.label_count(label_name) == 1:
+            self.gui.deactivate_button(label_name)
+        self.erase_annotation(label_name)
+        self.dd.delete_label(label_name)
 
     def selector_on_press(self, event):
         """
@@ -175,7 +184,8 @@ class DrawManager():
         self.is_drawing = True
         if event.inaxes:
             self.start = (event.xdata, event.ydata)
-            self.color = random_bright_color()
+            self.color = self.dd.get_color_by_type_and_name(
+                self.annotation_mode, self.label_name) or random_bright_color()
         else:
             print("Clicked outside the axes!")
 
@@ -184,7 +194,8 @@ class DrawManager():
             return
         if self.start is None:
             self.start = (event.xdata, event.ydata)
-            self.color = random_bright_color()
+            self.color = self.dd.get_color_by_type_and_name(
+                self.annotation_mode, self.label_name) or random_bright_color()
         self.end = (event.xdata, event.ydata)
         self.draw_annotation()
 
@@ -193,7 +204,8 @@ class DrawManager():
             return
         if self.start is None:
             self.start = (event.xdata, event.ydata)
-            self.color = random_bright_color()
+            self.color = self.dd.get_color_by_type_and_name(
+                self.annotation_mode, self.label_name) or random_bright_color()
         self.end = (event.xdata, event.ydata)
 
         if self.end not in self.points:
