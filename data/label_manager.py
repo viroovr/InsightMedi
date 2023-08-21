@@ -18,9 +18,17 @@ class LabelManager():
         """
         for file_name in os.listdir(label_dir):
             if file_name.endswith('.txt'):
-                with open(os.path.join(label_dir, file_name), "r") as f:
-                    self.frame_label_dict[int(
-                        file_name.split(".")[0])] = json.load(f)
+                frame_number = int(os.path.splitext(file_name)[0])
+                file_path = os.path.join(label_dir, file_name)
+                try:
+                    with open(file_path, "r") as f:
+                        try:
+                            label_data = json.load(f)
+                            self.frame_label_dict[frame_number] = label_data
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON in {file_path}: {e}")
+                except FileNotFoundError:
+                    print(f"File not found: {file_path}")
 
     def load_all_label(self):
         all_labels = set()
@@ -110,7 +118,14 @@ class LabelManager():
         return False
 
     def get_first_frame(self, label):
+        frame = None
         for frame in self.frame_label_dict:
             if label in self.frame_label_check(frame):
                 return True, frame
         return False, frame
+
+    def get_color_by_type_and_name(self, drawing_type, label_name):
+        found, frame = self.get_first_frame(label_name)
+        if found and label_name in self.frame_label_dict.get(frame, {}).get(drawing_type, {}):
+            return self.frame_label_dict[frame][drawing_type][label_name]['color']
+        return None

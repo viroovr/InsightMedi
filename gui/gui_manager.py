@@ -7,11 +7,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas as FigureCanvas
 from matplotlib.figure import Figure
 from functools import partial
 import static.stylesheet as style
-from controller.test_control import Controller as ct
+from controller.controller import Controller as ct
 from data.data_manager import DataManager
 
 
-class Gui(QMainWindow):
+class GuiManager(QMainWindow):
     def __init__(self, get):
         super().__init__()
         self.get = get
@@ -79,7 +79,6 @@ class Gui(QMainWindow):
         self.set_tracking_layout()
 
         self.tracking_active = False
-        self.label_name = None
         # timer
         self.timer = QTimer()
         self.timer_active = None
@@ -96,7 +95,7 @@ class Gui(QMainWindow):
         toolbar = self.addToolBar("Toolbar")
 
         # Create actions
-        self.create_actions(toolbar)
+        self.actions = self.create_actions(toolbar)
 
         # Create a status bar
         self.statusBar().showMessage("")
@@ -156,6 +155,11 @@ class Gui(QMainWindow):
     def reset_env(self):
         self.setCursor(Qt.ArrowCursor)
         self.disable_total_label()
+        try:
+            self.disconnect_actions()
+            self.disconnect_buttons()
+        except TypeError:
+            pass
         self.video_disconnect_func()
         self.canvas.figure.clear()
         self.slider.setValue(0)   # slider value 초기화
@@ -163,16 +167,19 @@ class Gui(QMainWindow):
 
     def reset_viewer(self):
         self.load_label_button()
+        self.connect_buttons()
+        self.connect_actions()
         self.set_status_bar()
         self.set_tool_status_label()
 
     def video_disconnect_func(self):
-        if self.timer_active is None:
-            return
-        self.timer.timeout.disconnect(self.updateFrame)
-        self.slider.valueChanged.disconnect(self.sliderValueChanged)
-        self.play_button.clicked.disconnect(self.playButtonClicked)
-        self.tracking_button.clicked.disconnect(self.trackingClicked)
+        try:
+            self.timer.timeout.disconnect(self.updateFrame)
+            self.slider.valueChanged.disconnect(self.sliderValueChanged)
+            self.play_button.clicked.disconnect(self.playButtonClicked)
+            self.tracking_button.clicked.disconnect(self.trackingClicked)
+        except TypeError:
+            pass
 
     def video_connect_func(self):
         self.timer.timeout.connect(self.updateFrame)
@@ -217,7 +224,7 @@ class Gui(QMainWindow):
         # GUI에서 모든 프레임에 라벨이 1개만 존재하면 버튼 비활성화
         self.activate_buttons(label)
         self.cl.label_button_clicked(label)
-        self.label_name = label
+        self.draw_rectangle(label)
 
     def go_button_clicked(self, label):
         found, frame = self.dm.get_first_frame(label)
@@ -323,8 +330,7 @@ class Gui(QMainWindow):
         return None
 
     def draw_shape(self, shape_type, label):
-        label = label or self.label_name or self.get_empty_label()
-        self.label_name = None
+        label = label or self.cl.get_label_name() or self.get_empty_label()
         self.setCursor(Qt.CrossCursor)
         self.cl.init_draw_mode(shape_type, label)
         self.set_tool_status_label()
@@ -375,6 +381,7 @@ class Gui(QMainWindow):
         input_frame_value = self.dm.get_tracking_num(
             self.tracking_textbox.text())
         print("object tracking 실행될 frame 수", input_frame_value)
+        self.clear_focus()
         if not self.tracking_active:
             self.cl.start_tracking_status()
             self.tracking_active = True
@@ -397,6 +404,9 @@ class Gui(QMainWindow):
                 self.tracking_active = False
                 self.tracking_button.setStyleSheet(style.TRACKING_BUTTON)
                 break
+    
+    def clear_focus(self):
+        self.tracking_textbox.clearFocus()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_T:
@@ -408,11 +418,13 @@ class Gui(QMainWindow):
             print("delete 키 눌림")
             self.cl.init_selector("delete")
             for label_name in self.cl.remove_annotation():
-                self.deactivate_button(label_name)
+                if self.dm.label_count(label_name) == 1:
+                    self.deactivate_button(label_name)
 
         elif event.key() == Qt.Key_Escape:
             print('esc키 눌림')
             self.cl.select_off_all()
+            self.clear_focus()
             self.selector()
 
         if event.key() == Qt.Key_Space:
@@ -425,23 +437,34 @@ class Gui(QMainWindow):
         for i in range(8):
             label_name = f"label {i + 1}"
 
-            label_button = self.create_button(label_name, style.NORMAL_LABEL_BUTTON,
-                                              self.label_button_clicked, label_name)
-            go_button = self.create_button("GO", style.NORMAL_GO_BUTTON,
-                                           self.go_button_clicked, label_name)
+            label_button = self.create_button(
+                label_name, style.NORMAL_LABEL_BUTTON,)
+            go_button = self.create_button("GO", style.NORMAL_GO_BUTTON)
 
             button_layout = self.create_button_layout(label_button, go_button)
             self.label_layout.addLayout(button_layout)
 
             self.buttons[label_name] = [label_button, go_button]
 
-    def create_button(self, label, style_sheet, connect_function=None, *args):
+    def create_button(self, label, style_sheet):
         button = QPushButton(label)
         button.setStyleSheet(style_sheet)
-        if connect_function:
-            button.clicked.connect(partial(connect_function, *args))
         button.setFocusPolicy(Qt.NoFocus)
         return button
+
+    def connect_buttons(self):
+        for label_name, buttons in self.buttons.items():
+            buttons[0].clicked.connect(
+                partial(self.label_button_clicked, label_name))
+            buttons[1].clicked.connect(
+                partial(self.go_button_clicked, label_name))
+
+    def disconnect_buttons(self):
+        for label_name, buttons in self.buttons.items():
+            buttons[0].clicked.disconnect(
+                partial(self.label_button_clicked, label_name))
+            buttons[1].clicked.disconnect(
+                partial(self.go_button_clicked, label_name))
 
     def create_textbox(self, validator, style_sheet):
         textbox = QLineEdit()
@@ -466,32 +489,46 @@ class Gui(QMainWindow):
         grid_box.addLayout(self.slider_layout, 8, 0)
 
         # column 1
-        grid_box.addWidget(self.frame_label, 8, 1)
-
-        # column 2
         grid_box.addLayout(self.label_layout, 0, 1)
         grid_box.addWidget(self.play_button, 1, 1)
         grid_box.addLayout(self.tracking_layout, 2, 1)
         grid_box.addWidget(self.status_widget, 3, 1)
+        # grid_box.addLayout(self.dcm_header_layout, 4, 1)
 
     def set_status_bar(self):
         file_path = self.dm.get_file_path()
         self.statusBar().showMessage(file_path)
 
     def create_actions(self, toolbar):
-        # Open file action
         actions = ["open", "save", "selector", "windowing", "line",
                    "rectangle", "circle", "freehand",
                    "zoomin", "zoomout", "delete", "clear"]
-        func = [self.open_file, self.save, self.selector, self.windowing, self.draw_line,
-                self.draw_rectangle, self.draw_circle, self.draw_freehand,
-                self.zoom_in, self.zoom_out, self.delete, self.delete_all]
+
         icon_dir = 'gui/icon'
-        for act, func in zip(actions, func):
+        ret_actions = []
+        for act in actions:
             action = QAction(
                 QIcon(f'{icon_dir}/{act}_icon.png'), act.title(), self)
-            action.triggered.connect(func)
+            if act == "open":
+                action.triggered.connect(self.open_file)
+            else:
+                ret_actions.append(action)
             toolbar.addAction(action)
+        return ret_actions
+
+    def connect_actions(self):
+        func = [self.save, self.selector, self.windowing, self.draw_line,
+                self.draw_rectangle, self.draw_circle, self.draw_freehand,
+                self.zoom_in, self.zoom_out, self.delete, self.delete_all]
+        for action, fun in zip(self.actions, func):
+            action.triggered.connect(fun)
+
+    def disconnect_actions(self):
+        func = [self.save, self.selector, self.windowing, self.draw_line,
+                self.draw_rectangle, self.draw_circle, self.draw_freehand,
+                self.zoom_in, self.zoom_out, self.delete, self.delete_all]
+        for action, fun in zip(self.actions, func):
+            action.triggered.disconnect(fun)
 
     def set_tracking_layout(self):
         self.tracking_layout = QHBoxLayout()

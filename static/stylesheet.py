@@ -10,8 +10,8 @@ HEIGHT20 = "height: 20px"
 
 # Buttons
 # label button
-NORMAL_LABEL_BUTTON = "color: gray; font-weight: normal; height: 30px; width: 120px;"
-BOLD_LABEL_BUTTON = "color: white; font-weight: bold; height: 30px; width: 120px;"
+NORMAL_LABEL_BUTTON = "color: gray; font-weight: normal; height: 30px; width: 150px;"
+BOLD_LABEL_BUTTON = "color: white; font-weight: bold; height: 30px; width: 150px;"
 
 # go button
 NORMAL_GO_BUTTON = "color: gray; font-weight: normal; height: 30px; width: 50px;"

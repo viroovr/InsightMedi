@@ -82,9 +82,8 @@ def get_line_annotation_info(an):
     Retruns:
         (라벨명, (x, y), 컬러값)
     """
-    data = an.get_data()
-    ret_points = [(data[0][i], data[1][i]) for i in range(len(data[0]))]
-    return an.get_label(), ret_points, get_color(an)
+    ret_point = [list(x) for x in an.get_data()]
+    return an.get_label(), ret_point, get_color(an)
 
 
 def get_circle_annotation_info(an):
