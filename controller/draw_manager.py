@@ -28,7 +28,7 @@ class DrawManager():
 
     def init_figure(self):
         # print(dir(self.canvas.figure))
-
+        self.annotation.clear()
         self.frame_ax = self.canvas.figure.add_subplot(
             111, aspect='auto', facecolor="#3A3A3A")
         self.frame_ax.axis("off")

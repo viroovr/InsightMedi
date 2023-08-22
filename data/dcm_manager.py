@@ -69,3 +69,13 @@ class DcmManager():
             voi_lut_image = None
 
         return voi_lut_image
+
+    def get_dem_meta(self, meta):
+        meta = [i.replace(" ", "") for i in meta]
+        ret = []
+        for i in meta:
+            try:
+                ret.append(self.ds[i].value)
+            except (AttributeError, KeyError):
+                ret.append("")
+        return ret

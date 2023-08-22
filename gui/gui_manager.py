@@ -37,19 +37,8 @@ class GuiManager(QMainWindow):
         self.slider = QSlider(Qt.Horizontal)
         self.slider_layout.addWidget(self.slider)
 
+        self.set_dcm_header_widget()
         # WW, WL label
-        self.windowing_layout = QHBoxLayout()
-
-        self.wl_label = QLabel("WL:")
-        self.wl_label.setFixedHeight(20)
-        self.wl_label.setStyleSheet(style.WINDOWING_LABEL)
-
-        self.ww_label = QLabel("WW:")
-        self.ww_label.setFixedHeight(20)
-        self.ww_label.setStyleSheet(style.WINDOWING_LABEL)
-
-        self.windowing_layout.addWidget(self.wl_label)
-        self.windowing_layout.addWidget(self.ww_label)
 
         # Tool status label
         self.tool_status_label = QLabel("Tool Status: None")
@@ -60,7 +49,6 @@ class GuiManager(QMainWindow):
         self.status_widget = QWidget()
         self.status_layout = QVBoxLayout()
 
-        self.status_layout.addLayout(self.windowing_layout)
         self.status_layout.addWidget(self.tool_status_label)
 
         self.status_widget.setLayout(self.status_layout)
@@ -189,12 +177,14 @@ class GuiManager(QMainWindow):
 
     def init_dcm_ui(self):
         self.set_window_label()
+        self.set_dcm_header_label()
         self.cl.init_dcm_show()
         self.selector()
         # slider 설정
         self.slider.setMaximum(0)
 
     def init_mp4_ui(self):
+        self.hide_dcm_header_widget()
         self.video_connect_func()
         self.timer_active = False
         self.cl.frame_show(frame=self.dm.get_image())
@@ -480,19 +470,23 @@ class GuiManager(QMainWindow):
 
     def set_gui_layout(self):
         grid_box = QGridLayout(self.main_widget)
-        grid_box.setColumnStretch(0, 4)   # column 0 width 4
-        grid_box.setColumnStretch(1, 1)   # column 1 width 1
+        grid_box.setColumnStretch(1, 4)   # column 0 width 4
+        grid_box.setColumnStretch(2, 1)   # column 1 width 1
 
         # column 0
-        grid_box.addWidget(self.canvas, 0, 0, 8, 1)
-        grid_box.addLayout(self.slider_layout, 8, 0)
+        grid_box.addWidget(self.dcm_header_widget, 0, 0)
 
         # column 1
-        grid_box.addLayout(self.label_layout, 0, 1)
-        grid_box.addWidget(self.play_button, 1, 1)
-        grid_box.addLayout(self.tracking_layout, 2, 1)
-        grid_box.addWidget(self.status_widget, 3, 1)
-        # grid_box.addLayout(self.dcm_header_layout, 4, 1)
+        grid_box.addWidget(self.canvas, 0, 1, 8, 1)
+        grid_box.addLayout(self.slider_layout, 8, 1)
+
+        # column 2
+        grid_box.addLayout(self.label_layout, 0, 2)
+        grid_box.addWidget(self.play_button, 1, 2)
+        grid_box.addLayout(self.tracking_layout, 2, 2)
+        grid_box.addWidget(self.status_widget, 3, 2)
+        self.grid_box = grid_box
+        self.hide_dcm_header_widget()
 
     def set_status_bar(self):
         file_path = self.dm.get_file_path()
@@ -539,3 +533,61 @@ class GuiManager(QMainWindow):
         self.tracking_textbox = self.create_textbox(
             QIntValidator(1, 100, self), style.LIGHTFONT)
         self.tracking_layout.addWidget(self.tracking_textbox)
+
+    def create_dcm_label(self, label_name):
+
+        label = QLabel(label_name)
+        label.setFixedHeight(20)
+        label.setStyleSheet(style.WINDOWING_LABEL)
+
+        info = QLabel("    ")
+        info.setFixedHeight(20)
+        info.setStyleSheet(style.WINDOWING_LABEL)
+
+        return label, info
+
+    def set_dcm_header_widget(self):
+        self.dcm_header_widget = QWidget()
+
+        self.dcm_header_layout = QGridLayout()
+        self.meta = ["Patient Name", "PatientID", "Patient Birth Date", "Patient Sex",
+                     "Patient Age", "Patient Weight", "Patient Address", "Study Date",
+                     "Study Time", "Study ID", "Study Modality", "Study Description",
+                     "Series Date", "Series Time", "Series Description"]
+        for i, mt in enumerate(self.meta):
+            name, info = self.create_dcm_label(mt)
+            self.dcm_header_layout.addWidget(name, i, 0)
+            self.dcm_header_layout.addWidget(info, i, 1)
+
+        self.dcm_header_layout.setSpacing(10)
+        self.set_windowing_label()
+        self.dcm_header_layout.addWidget(self.wl_label, len(self.meta) + 1, 0)
+        self.dcm_header_layout.addWidget(self.ww_label, len(self.meta) + 1, 1)
+
+        self.dcm_header_widget.setLayout(self.dcm_header_layout)
+        self.dcm_header_widget.setStyleSheet(style.STATUS_WIDGET)
+
+    def set_windowing_label(self):
+        self.windowing_layout = QHBoxLayout()
+
+        self.wl_label = QLabel("WL:")
+        self.wl_label.setFixedHeight(20)
+        self.wl_label.setStyleSheet(style.WINDOWING_LABEL)
+
+        self.ww_label = QLabel("WW:")
+        self.ww_label.setFixedHeight(20)
+        self.ww_label.setStyleSheet(style.WINDOWING_LABEL)
+
+        self.windowing_layout.addWidget(self.wl_label)
+        self.windowing_layout.addWidget(self.ww_label)
+
+    def hide_dcm_header_widget(self):
+        self.dcm_header_widget.hide()
+
+    def set_dcm_header_label(self):
+        value = self.dm.get_dcm_meta(self.meta)
+        for i, v in enumerate(value):
+            self.dcm_header_layout.itemAtPosition(
+                i, 1).widget().setText(str(v))
+        self.dcm_header_layout.update()
+        self.dcm_header_widget.show()

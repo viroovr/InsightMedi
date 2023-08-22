@@ -146,3 +146,6 @@ class DataManager():
 
     def get_color_by_type_and_name(self, drawing_type, label_name):
         return self.lm.get_color_by_type_and_name(drawing_type, label_name)
+
+    def get_dcm_meta(self, meta):
+        return self.dm.get_dem_meta(meta)
