@@ -1,3 +1,6 @@
+<img width="187" alt="스크린샷 2023-08-23 오전 10 33 06" src="https://github.com/viroovr/InsightMedi/assets/122509996/dd9e3995-0a72-4ec6-9f62-9cab22816c7a">
+
+
 # 🩻 InsightMedi
 > DICOM(국제의료표준) 의료영상 라벨링 개선을 위한 라벨링툴 개발
 
