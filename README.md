@@ -157,9 +157,14 @@ draw_annotation에서 아예 label name을 함수의 parameter로 받도록
 
 ### ✔️ 팀프로젝트 4주차 (0816 - 0819)
 - [x] label button 클릭했을 때 현재 frame의 label 만 지워지도록 수정
+- [x] tracking 버튼 및 텍스트 박스 UI/UX 추가
+- [x] 화면을 벗어나는 라벨일 경우 object tracking 중지하도록 구현
 - [x] 코드 리팩토링
 
-
+### ✔️ 팀프로젝트 5주차 (0821 - 0825)
+- [x] 의료 비디오 영상 single/multi object tracking 시연 영상
+- [x] DICOM 형식 파일 시연 영상
+- [x] InsightMedi 오류 수정 및 최종 점검
 
 '
 ["본 연구는 과학기술정보통신부 및 정보통신기획평가원의 SW전문인재양성사업의 연구결과로 수행되었음"(2022-0-01127) ]
